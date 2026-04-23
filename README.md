@@ -137,6 +137,16 @@ edp run [step] [options]                  # 执行
 - Csh/Tcsh: `source edp.csh`，加载 `completions/edp.csh`
 - 两套补全都支持 `run` 关键参数（`-debug/--debug`, `-info/--info`, `-fr/-to/-skip`）
 
+## Workspace Artifact Policy
+
+- `try_new_edp/` 是测试与演示工作区，允许保留可复现流程所需的关键产物
+- 建议优先跟踪：
+  - `cmds/{tool}/{step}.tcl`
+  - `cmds/{tool}/{step}_debug.tcl`
+  - shell launcher 示例（`.sh` 或 `.csh`，按当前 shell）
+- 建议避免提交临时日志、工具输出数据库等一次性文件
+- 如需清理噪音文件，优先在 `try_new_edp/` 下补充局部 `.gitignore`
+
 ## Development Status
 
 | Module | Status |
