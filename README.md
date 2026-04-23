@@ -137,6 +137,18 @@ edp run [step] [options]                  # 执行
 - Csh/Tcsh: `source edp.csh`，加载 `completions/edp.csh`
 - 两套补全都支持 `run` 关键参数（`-debug/--debug`, `-info/--info`, `-fr/-to/-skip`）
 
+## Development Validation
+
+建议在改动 `edp run` 相关逻辑后执行以下最小回归：
+
+```bash
+PYTHONPATH=packages python -m unittest \
+  packages.edp.tests.test_run_cli_e2e \
+  packages.cmdkit.tests.test_cmdkit.TestShellGeneration \
+  packages.cmdkit.tests.test_cmdkit.TestWriteStepScript \
+  packages.flowkit.tests.test_executor.TestLSFRunner
+```
+
 ## Workspace Artifact Policy
 
 - `try_new_edp/` 是测试与演示工作区，允许保留可复现流程所需的关键产物
