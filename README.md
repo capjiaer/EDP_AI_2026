@@ -86,7 +86,7 @@ hooks/{tool}/{step}/
   └── {sub}.replace     # sub_step 替换 hook
 ```
 
-Hook 为 proc 定义，通过 `if {[info procs ...]}` 安全调用，空模板不生效。
+Hook 为 proc 定义；生成脚本只会 source 有效 hook 文件并直接调用对应 proc（默认模板文件不会参与执行）。
 
 ### Debug Mode
 
@@ -122,6 +122,9 @@ edp init -prj dongting -ver P85          # 初始化项目
 edp init -blk pcie                       # 初始化 block workspace
 edp status                                # 查看执行状态
 edp graph                                 # 查看/切换依赖图
+edp retry [step] [options]                # 从失败步骤重试
+edp doctor [--strict] [--json]            # 环境与结构诊断
+edp flow create                           # 交互式创建新 flow step 骨架
 edp run [step] [options]                  # 执行
 ```
 
@@ -167,7 +170,7 @@ PYTHONPATH=packages python -m unittest \
 | cmdkit (script_builder, debug script) | Done |
 | dirkit (init, hook templates) | Done |
 | flowkit (runner, executor, graph) | Done |
-| edp CLI (init/status/graph) | Done |
+| edp CLI (init/run/status/retry/graph/doctor/flow) | Done |
 | edp run -debug/--debug | Done |
 | edp run -info/--info | Done |
 | bash/csh completion | Done |

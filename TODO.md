@@ -22,17 +22,16 @@
 - Added csh/tcsh completion file: `completions/edp.csh`
 - `edp.csh` now loads completion cache and sources csh completion
 
+### Flow tutor
+- Added `edp flow create` interactive scaffold command
+- Supports minimal skeleton generation (`step.yaml`, `config.yaml`, `steps/*.tcl`, `hooks/*`)
+- Added command tests and prompt examples for new flow owners
+
 ## Remaining TODO
 
 ### P1: Script builder cleanup
 - `tcl_packages` source logic (base/overlay) still has manual loop parts that can be unified with `_source_block()`
 - Goal: reduce duplicate code paths and keep source ordering comments consistent
-
-### P1: CLI integration tests
-- Add end-to-end CLI tests for:
-  - `edp run <step> -debug`
-  - `edp run <step> -debug -info`
-  - shell-aware launcher suffix (`.sh` / `.csh`)
 
 ### P2: Workspace artifact policy
 - Finalize which `try_new_edp` generated files should be tracked as examples
@@ -44,4 +43,4 @@
 - cmdkit: `script_builder` + debug script generation
 - dirkit: `init` + hook template generation
 - flowkit: runner / executor / graph integration
-- edp CLI: `init` / `status` / `graph` / `run`
+- edp CLI: `init` / `status` / `graph` / `run` / `retry` / `doctor` / `flow`

@@ -30,7 +30,26 @@ edp init -blk pcie
 
 ---
 
-## 3) 常见执行方式
+## 3) 创建新 flow step（Flow Tutor）
+
+```bash
+# 交互式创建（推荐）
+edp flow create
+
+# 半自动：减少提问
+edp flow create --tool pnr_innovus --step place
+```
+
+示例输入（交互）：
+- Tool name: `pv_calibre`
+- Step name: `dfm`
+- Sub steps: `dfm`
+- Invoke: `calibre -drc -hier -turbo`
+- Create hooks: `yes`
+
+---
+
+## 4) 常见执行方式
 
 ```bash
 # 全图执行
@@ -51,7 +70,7 @@ edp run --force
 
 ---
 
-## 4) Debug 执行（推荐流程）
+## 5) Debug 执行（推荐流程）
 
 ```bash
 # Debug 执行（会生成并使用 *_debug 启动脚本）
@@ -67,7 +86,7 @@ edp run place -debug -info
 
 ---
 
-## 5) 交互式 Tcl Debug
+## 6) 交互式 Tcl Debug
 
 ```tcl
 source cmds/pnr_innovus/place_debug.tcl
@@ -81,7 +100,7 @@ edp_vars pnr*
 
 ---
 
-## 6) ConfigKit 快速示例
+## 7) ConfigKit 快速示例
 
 ```python
 from configkit import yamlfiles2dict, merge_dict
@@ -105,7 +124,7 @@ back = tclinterp2dict(interp)
 
 ---
 
-## 7) 补全验证
+## 8) 补全验证
 
 ```bash
 # bash

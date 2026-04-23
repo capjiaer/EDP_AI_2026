@@ -4,6 +4,13 @@
 
 ## 本轮完成内容
 
+### 0) `edp flow create` Flow Tutor（MVP）
+
+- 新增命令组：`edp flow`
+- 新增子命令：`edp flow create`
+- 通过交互式提问生成最小骨架（`step.yaml` / `config.yaml` / `steps/*.tcl` / `hooks/*`）
+- 明确覆盖链语义：同名 step 覆盖，新 step 追加
+
 ### 1) `edp run` debug 能力补齐
 
 - 新增参数：`-debug/--debug`

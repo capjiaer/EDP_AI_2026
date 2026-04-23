@@ -8,7 +8,7 @@
 
 ## 当前状态（可对外使用）
 
-- CLI：`init` / `status` / `graph` / `run` 已可用
+- CLI：`init` / `status` / `graph` / `run` / `retry` / `doctor` / `flow create` 已可用
 - Debug 执行链：
   - `edp run <step> -debug/--debug`
   - LSF 交互模式支持 `bsub -Ip`
@@ -27,6 +27,7 @@
 - `flowkit`：依赖图、执行器、runner（完成）
 - `dirkit`：工程与工作区初始化（完成）
 - `edp`：命令编排与上下文解析（完成）
+- Flow Tutor：`edp flow create` 交互式骨架生成（完成）
 
 ## 关键改进
 
