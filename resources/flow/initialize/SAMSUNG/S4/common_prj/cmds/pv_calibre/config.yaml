@@ -1,0 +1,14 @@
+# config.yaml
+# pv_calibre 工具配置文件
+# Calibre 运行时所需的配置项：DRC/LVS/PEX 规则文件路径、SVRF 参数等
+# project 级的同名文件会覆盖此文件
+
+pv_calibre:
+  lsf:
+    lsf_mode: 1
+    cpu_num: 4
+    queue: normal
+  drc:
+    lsf:
+      cpu_num: 16
+      queue: verify

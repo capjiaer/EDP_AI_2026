@@ -1,0 +1,18 @@
+# step_config.yaml
+# S4 节点级 step→tool 映射
+# 格式: tool_name.step_name
+# 编排者显式指定每个 step 使用哪个工具
+# project 级的同名文件会覆盖此文件
+
+steps:
+  - pnr_innovus.init
+  - pnr_innovus.floorplan
+  - pnr_innovus.place
+  - pnr_innovus.cts
+  - pnr_innovus.route
+  - pnr_innovus.postroute
+  - pv_calibre.ipmerge
+  - pv_calibre.dummy
+  - pv_calibre.drc
+  - pv_calibre.lvs
+  - pv_calibre.perc

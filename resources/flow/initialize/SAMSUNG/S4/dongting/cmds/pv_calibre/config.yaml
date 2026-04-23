@@ -1,0 +1,8 @@
+# config.yaml
+# dongting 项目级 pv_calibre 工具配置
+# 继承 S4/common_prj，同名 key 覆盖
+# 不需要覆盖的项可以不写，自动继承 common_prj
+
+# calibre:
+#   drc_rule_file: ""
+#   lvs_rule_file: ""

@@ -1,0 +1,6 @@
+# graph_config2.yaml
+# S4 备用执行流图（ECO flow）
+# 从 postroute 直接进入 ECO 修复，跳过部分步骤
+
+postroute: eco_route
+eco_route: [drc, lvs]

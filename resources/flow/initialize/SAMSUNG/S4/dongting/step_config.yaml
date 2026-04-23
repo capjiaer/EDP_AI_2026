@@ -1,0 +1,16 @@
+# step_config.yaml
+# dongting 项目级 step→tool 映射
+# 继承 S4/common_prj，同名文件整体覆盖
+
+steps:
+  - pnr_innovus.init
+  - pnr_innovus.floorplan
+  - pnr_innovus.place
+  - pnr_innovus.cts
+  - pnr_innovus.route
+  - pnr_innovus.postroute
+  - pv_calibre.ipmerge
+  - pv_calibre.dummy
+  - pv_calibre.drc
+  - pv_calibre.lvs
+  - pv_calibre.perc

@@ -1,0 +1,6 @@
+# step.yaml
+# dongting 项目级 pnr_innovus 步骤注册表
+# 继承 S4/common_prj，同名 key 覆盖
+
+pnr_innovus:
+  supported_steps: {}

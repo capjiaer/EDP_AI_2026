@@ -1,0 +1,71 @@
+# step.yaml — 步骤注册表
+# flow owner 完成步骤脚本后在此注册
+# project 级的同名文件会覆盖此文件（同名 step 整体覆盖，新增 step 追加）
+#
+# === invoke 语法 ===
+# invoke 列表中的每一段是独立字符串，空格拼接成完整命令。
+#
+# 变量引用：
+#   $edp(var)  — 框架内置变量（只读，始终可用）：
+#                  $edp(step)    步骤名，如 place
+#                  $edp(script)  生成的 .tcl 绝对路径
+#                  $edp(workdir) 工作目录
+#                  $edp(tool)    工具名，如 pnr_innovus
+#                  $edp(foundry) 厂商，如 SAMSUNG
+#                  $edp(node)    节点，如 S4
+#                  $edp(project) 项目名，如 dongting
+#   {var}      — 条件变量（来自 config.yaml），有值替换，没值整段丢弃
+#   $var       — 必选变量（来自 config.yaml），始终替换，不影响去留
+#
+# 变量解析链（{var} 和 $var）：
+#   先查 tool(step,var)，再查 tool(var)
+#
+# 示例：
+#   invoke:
+#     - "innovus -init $edp(script)"   # 框架变量，始终存在
+#     - "{nowin}"                       # config: nowin: -nowin → 保留；不设 → 丢弃
+#     - "{tee} $edp(step).log"         # config: tee: "|& tee" → "|& tee place.log"
+#
+# === config.yaml 变量命名空间 ===
+#   edp(var)        — 框架只读（不可配）
+#   tool(var)       — 工具级，如 pnr_innovus(tech_lef)
+#   tool(step,var)  — 步骤级，如 pnr_innovus(place,effort)
+#   .tcl 里用 set pnr_innovus(place,effort) high 来引用
+#
+
+pnr_innovus:
+  supported_steps:
+    init:
+      invoke:
+        - "innovus -init $edp(script)"
+        - "{nowin}"
+        - "{tee} $edp(step).log"
+    floorplan:
+      invoke:
+        - "innovus -init $edp(script)"
+        - "{nowin}"
+        - "{tee} $edp(step).log"
+    place:
+      invoke:
+        - "innovus -init $edp(script)"
+        - "{nowin}"
+        - "{tee} $edp(step).log"
+      sub_steps:
+        - global_place
+        - detail_place
+        - opt_design
+    cts:
+      invoke:
+        - "innovus -init $edp(script)"
+        - "{nowin}"
+        - "{tee} $edp(step).log"
+    route:
+      invoke:
+        - "innovus -init $edp(script)"
+        - "{nowin}"
+        - "{tee} $edp(step).log"
+    postroute:
+      invoke:
+        - "innovus -init $edp(script)"
+        - "{nowin}"
+        - "{tee} $edp(step).log"

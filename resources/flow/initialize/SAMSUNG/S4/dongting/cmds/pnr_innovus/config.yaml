@@ -1,0 +1,8 @@
+# config.yaml
+# dongting 项目级 pnr_innovus 工具配置
+# 继承 S4/common_prj，同名 key 覆盖
+# 不需要覆盖的项可以不写，自动继承 common_prj
+
+# innovus:
+#   init_file: ""
+#   tech_lef: ""

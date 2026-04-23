@@ -1,0 +1,17 @@
+# config.yaml
+# pnr_innovus 工具配置文件
+# Innovus 运行时所需的配置项：init 参数、RC corner、tech LEF 路径等
+# project 级的同名文件会覆盖此文件
+
+pnr_innovus:
+  lsf:
+    lsf_mode: 1
+    cpu_num: 8
+    queue: normal
+  init:
+    lsf:
+      cpu_num: 16
+  place:
+    lsf:
+      cpu_num: 32
+      queue: high

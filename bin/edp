@@ -1,0 +1,4 @@
+#!/bin/bash
+EDP_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+export PYTHONPATH="${EDP_ROOT}/packages${PYTHONPATH:+:$PYTHONPATH}"
+exec "${PYTHON:-python}" -m edp "$@"

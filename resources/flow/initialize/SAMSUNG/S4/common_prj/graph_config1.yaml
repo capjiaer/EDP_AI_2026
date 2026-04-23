@@ -1,0 +1,12 @@
+# graph_config1.yaml
+# S4 默认执行流图（主图）
+# PR → PV 完整流程
+
+init: floorplan
+floorplan: place
+place: cts
+cts: route
+route: postroute
+postroute: ipmerge
+ipmerge: dummy
+dummy: [drc, lvs, perc]

@@ -1,0 +1,13 @@
+# graph_config_dongting.yaml
+# dongting 项目级执行流图
+# 继承 S4/common_prj 的 graph_config，可自定义执行流程
+# 不需要自定义图可以不写，自动使用 common_prj 的图
+
+init: floorplan
+floorplan: place
+place: cts
+cts: route
+route: postroute
+postroute: ipmerge
+ipmerge: dummy
+dummy: [drc, lvs, perc]

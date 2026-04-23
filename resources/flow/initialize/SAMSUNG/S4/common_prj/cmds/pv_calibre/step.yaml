@@ -1,0 +1,59 @@
+# step.yaml — 步骤注册表
+# flow owner 完成步骤脚本后在此注册
+# project 级的同名文件会覆盖此文件（同名 step 整体覆盖，新增 step 追加）
+#
+# === invoke 语法 ===
+# invoke 列表中的每一段是独立字符串，空格拼接成完整命令。
+#
+# 变量引用：
+#   $edp(var)  — 框架内置变量（只读，始终可用）：
+#                  $edp(step)    步骤名
+#                  $edp(script)  生成的 .tcl 绝对路径
+#                  $edp(workdir) 工作目录
+#                  $edp(tool)    工具名
+#                  $edp(foundry) 厂商
+#                  $edp(node)    节点
+#                  $edp(project) 项目名
+#   {var}      — 条件变量（来自 config.yaml），有值替换，没值整段丢弃
+#   $var       — 必选变量（来自 config.yaml），始终替换，不影响去留
+#
+# 变量解析链（{var} 和 $var）：
+#   先查 tool(step,var)，再查 tool(var)
+#
+# 示例：
+#   invoke:
+#     - "calibre -lvs -hier -turbo {cpu_num}"
+#     - "{hyper}"
+#     - "-hcell {hcell}"
+#     - "{design} {rule_file}"
+#     - "{tee} $edp(step).log"
+#
+# === config.yaml 变量命名空间 ===
+#   edp(var)        — 框架只读（不可配）
+#   tool(var)       — 工具级，如 pv_calibre(lvs_opts)
+#   tool(step,var)  — 步骤级，如 pv_calibre(lvs,cpu_num)
+#   .tcl 里用 set pv_calibre(lvs,cpu_num) 8 来引用
+#
+
+pv_calibre:
+  supported_steps:
+    ipmerge:
+      invoke:
+        - "calibre -ipmerge"
+        - "{tee} $edp(step).log"
+    dummy:
+      invoke:
+        - "calibre -dummy"
+        - "{tee} $edp(step).log"
+    drc:
+      invoke:
+        - "calibre -drc -hier -turbo {cpu_num}"
+        - "{tee} $edp(step).log"
+    lvs:
+      invoke:
+        - "calibre -lvs -hier -turbo {cpu_num}"
+        - "{tee} $edp(step).log"
+    perc:
+      invoke:
+        - "calibre -perc -hier -turbo {cpu_num}"
+        - "{tee} $edp(step).log"
