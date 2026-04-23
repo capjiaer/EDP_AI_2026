@@ -26,7 +26,7 @@ set _edp_init_opts = (-prj --project -w --work-path -n --node -ver --version -bl
 set _edp_run_opts = (-fr --from -to --to -skip --skip -dr --dry-run --force -debug --debug -info --info -h --help)
 set _edp_status_opts = (-h --help)
 set _edp_retry_opts = (-dr --dry-run -debug --debug -info --info -h --help)
-set _edp_graph_opts = (-f --format -o --output -h --help)
+set _edp_graph_opts = (-f --format -o --output -select --select -h --help)
 
 uncomplete edp >& /dev/null
 

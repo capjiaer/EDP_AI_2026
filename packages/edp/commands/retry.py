@@ -47,11 +47,16 @@ def retry(ctx, step, dry_run, debug, info_mode):
     # 检测图是否匹配
     saved_graph = state_store.load_graph_config()
     if saved_graph and saved_graph != graph_config.name:
-        raise click.ClickException(
-            f"State was created with {saved_graph}, "
-            f"but current graph is {graph_config.name}.\n"
-            f"  Use 'edp graph' to switch back, or 'edp run' to start fresh."
-        )
+        click.echo(click.style(
+            f"Warning: state was created with {saved_graph}, "
+            f"but current graph is {graph_config.name}.", fg='yellow'
+        ))
+        if not click.confirm(
+                "Retry with different graph? State will be cleared"):
+            raise click.ClickException(
+                "Aborted. Switch graph with 'edp graph' first.")
+        state_store.clear()
+        state_store.save_graph_config(graph_config.name)
 
     saved = state_store.load()
 

@@ -63,6 +63,7 @@ class TestCLIHelp(unittest.TestCase):
         self.assertIn("ascii", result.output)
         self.assertIn("dot", result.output)
         self.assertIn("table", result.output)
+        self.assertIn("--select", result.output)
 
 
 class TestMissingEdpCenter(unittest.TestCase):

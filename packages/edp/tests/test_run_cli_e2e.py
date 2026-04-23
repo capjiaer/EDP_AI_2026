@@ -233,6 +233,99 @@ pnr_innovus:
                 self.assertTrue(kwargs["debug"])
                 self.assertTrue(kwargs["verbose"])
 
+    def test_retry_mismatch_clears_state_after_confirmation(self):
+        from edp.cli import cli
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            branch = Path(tmpdir) / "branch"
+            branch.mkdir(parents=True, exist_ok=True)
+
+            with patch.object(self.retry_module, "_resolve_context") as mock_resolve_context, patch.object(
+                self.retry_module, "_pick_graph_config"
+            ) as mock_pick_graph, patch.object(
+                self.retry_module, "StateStore"
+            ) as mock_state_store_cls, patch.object(
+                self.retry_module, "WorkflowBuilder"
+            ) as mock_builder_cls, patch(
+                "cmdkit.ScriptBuilder", _DummyScriptBuilder
+            ), patch.object(
+                self.retry_module, "Executor"
+            ) as mock_executor_cls:
+                mock_resolve_context.return_value = {
+                    "branch_path": branch,
+                    "flow_base_path": Path(tmpdir) / "flow_base",
+                    "flow_overlay_path": Path(tmpdir) / "flow_overlay",
+                    "graph_configs": [Path(tmpdir) / "graph_config.yaml"],
+                    "tool_selection": {"place": "pnr_innovus"},
+                    "project_info": {},
+                }
+                mock_pick_graph.return_value = Path(tmpdir) / "graph_config.yaml"
+
+                mock_store = mock_state_store_cls.return_value
+                mock_store.exists.return_value = True
+                mock_store.load_graph_config.return_value = "old_graph.yaml"
+                mock_store.load.return_value = {"place": self.retry_module.StepStatus.FAILED}
+
+                mock_builder = mock_builder_cls.return_value
+                mock_builder.create_workflow.return_value = SimpleNamespace()
+
+                report = SimpleNamespace(
+                    success=True, failed_steps=[], skipped_steps=[], total_time=0.0
+                )
+                mock_executor = mock_executor_cls.return_value
+                mock_executor.run.return_value = report
+
+                result = self.runner.invoke(
+                    cli,
+                    ["--edp-center", tmpdir, "retry", "place"],
+                    input="y\n",
+                )
+
+                self.assertEqual(result.exit_code, 0, result.output)
+                mock_store.clear.assert_called_once()
+                mock_store.save_graph_config.assert_called_once_with("graph_config.yaml")
+
+    def test_graph_select_forces_reselect_flag(self):
+        from edp.cli import cli
+        graph_module = importlib.import_module("edp.commands.graph_cmd")
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with patch.object(graph_module, "_resolve_context") as mock_resolve_context, patch.object(
+                graph_module, "_pick_graph_config"
+            ) as mock_pick_graph, patch.object(
+                graph_module, "DependencyLoader"
+            ) as mock_loader_cls, patch.object(
+                graph_module, "GraphVisualizer"
+            ) as mock_viz_cls, patch.object(
+                graph_module, "get_graph_summary", return_value="summary"
+            ):
+                branch = Path(tmpdir) / "branch"
+                branch.mkdir(parents=True, exist_ok=True)
+                graph_cfg = Path(tmpdir) / "graph_config1.yaml"
+                graph_cfg.write_text("{}", encoding="utf-8")
+
+                mock_resolve_context.return_value = {
+                    "branch_path": branch,
+                    "flow_base_path": Path(tmpdir) / "flow_base",
+                    "flow_overlay_path": Path(tmpdir) / "flow_overlay",
+                    "graph_configs": [graph_cfg],
+                    "tool_selection": {"place": "pnr_innovus"},
+                    "project_info": {},
+                }
+                mock_pick_graph.return_value = graph_cfg
+
+                mock_loader = mock_loader_cls.return_value
+                mock_loader.load_from_multiple_files.return_value = SimpleNamespace()
+                mock_viz = mock_viz_cls.return_value
+                mock_viz.to_ascii_format.return_value = "graph"
+
+                result = self.runner.invoke(
+                    cli,
+                    ["--edp-center", tmpdir, "graph", "-select"],
+                )
+                self.assertEqual(result.exit_code, 0, result.output)
+                self.assertTrue(mock_pick_graph.call_args.kwargs["force_select"])
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

@@ -19,8 +19,10 @@ from edp.context import _resolve_context, _pick_graph_config
                default='ascii', help='Output format')
 @click.option('-o', '--output', type=click.Path(), default=None,
                help='Output file (default: stdout)')
+@click.option('-select', '--select', 'force_select', is_flag=True, default=False,
+              help='Force re-select graph config and overwrite .graph_config')
 @click.pass_context
-def graph_cmd(ctx, fmt, output):
+def graph_cmd(ctx, fmt, output, force_select):
     """Visualize dependency graph."""
     edp_center = ctx.obj['edp_center']
     if not edp_center:
@@ -31,7 +33,11 @@ def graph_cmd(ctx, fmt, output):
     context = _resolve_context(ctx)
 
     # 选择图配置
-    graph_config = _pick_graph_config(context['graph_configs'], context['branch_path'])
+    graph_config = _pick_graph_config(
+        context['graph_configs'],
+        context['branch_path'],
+        force_select=force_select,
+    )
     click.echo(f"Graph config: {graph_config.name} ({graph_config.resolve()})")
     click.echo("")
 

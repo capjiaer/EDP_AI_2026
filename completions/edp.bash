@@ -85,7 +85,7 @@ _edp_completions() {
                 -f|--format)    COMPREPLY=($(compgen -W "ascii dot table" -- "$cur")); return ;;
                 -o|--output)    compopt -o nospace -o default; COMPREPLY=(); return ;;
             esac
-            COMPREPLY=($(compgen -W "-f --format -o --output -h --help" -- "$cur"))
+            COMPREPLY=($(compgen -W "-f --format -o --output -select --select -h --help" -- "$cur"))
             ;;
     esac
 }

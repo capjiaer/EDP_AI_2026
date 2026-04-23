@@ -113,7 +113,8 @@ def _resolve_context(ctx) -> dict:
     }
 
 
-def _pick_graph_config(graph_configs: List[Path], branch_path: Path) -> Path:
+def _pick_graph_config(graph_configs: List[Path], branch_path: Path,
+                       force_select: bool = False) -> Path:
     """选择 graph config。优先读取已保存的选择，否则提示用户选并保存。"""
     # 只有一张图直接返回
     if len(graph_configs) == 1:
@@ -122,9 +123,10 @@ def _pick_graph_config(graph_configs: List[Path], branch_path: Path) -> Path:
         return selected
 
     # 尝试读取已保存的选择
-    saved = _load_graph_config_choice(branch_path, graph_configs)
-    if saved:
-        return saved
+    if not force_select:
+        saved = _load_graph_config_choice(branch_path, graph_configs)
+        if saved:
+            return saved
 
     # 提示用户选择
     click.echo("Multiple graph configs found, please select one:")
