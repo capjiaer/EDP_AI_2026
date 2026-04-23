@@ -21,7 +21,7 @@ if ("$_edp_projects" == "") set _edp_projects = ( )
 if ("$_edp_nodes" == "") set _edp_nodes = ( )
 if ("$_edp_steps" == "") set _edp_steps = ( )
 
-set _edp_subcmds = (init run status retry graph -h --help)
+set _edp_subcmds = (init run status retry graph doctor -h --help)
 set _edp_init_opts = (-prj --project -w --work-path -n --node -ver --version -blk --block -br --branch --link --no-link -h --help)
 set _edp_run_opts = (-fr --from -to --to -skip --skip -dr --dry-run --force -debug --debug -info --info -h --help)
 set _edp_status_opts = (-h --help)
@@ -56,4 +56,7 @@ complete edp 'n/status/($_edp_status_opts)/'
 complete edp 'n/graph/($_edp_graph_opts)/'
 complete edp 'N/-f --format/(ascii dot table)/'
 complete edp 'N/-o --output/f/'
+
+# doctor: help only
+complete edp 'n/doctor/(--strict --json -h --help)/'
 

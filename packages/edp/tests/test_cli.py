@@ -23,7 +23,7 @@ class TestCLIHelp(unittest.TestCase):
         from edp.cli import cli
         result = self.runner.invoke(cli, ["--help"])
         self.assertEqual(result.exit_code, 0)
-        for cmd in ["init", "run", "status", "retry", "graph"]:
+        for cmd in ["init", "run", "status", "retry", "graph", "doctor"]:
             self.assertIn(cmd, result.output)
 
     def test_init_help(self):
@@ -64,6 +64,13 @@ class TestCLIHelp(unittest.TestCase):
         self.assertIn("dot", result.output)
         self.assertIn("table", result.output)
         self.assertIn("--select", result.output)
+
+    def test_doctor_help(self):
+        from edp.cli import cli
+        result = self.runner.invoke(cli, ["doctor", "--help"])
+        self.assertEqual(result.exit_code, 0)
+        self.assertIn("--strict", result.output)
+        self.assertIn("--json", result.output)
 
 
 class TestMissingEdpCenter(unittest.TestCase):

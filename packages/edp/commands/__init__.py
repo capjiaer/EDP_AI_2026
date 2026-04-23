@@ -10,5 +10,6 @@ from .run import run
 from .status import status
 from .retry import retry
 from .graph_cmd import graph_cmd
+from .doctor import doctor
 
-__all__ = ['init', 'run', 'status', 'retry', 'graph_cmd']
+__all__ = ['init', 'run', 'status', 'retry', 'graph_cmd', 'doctor']

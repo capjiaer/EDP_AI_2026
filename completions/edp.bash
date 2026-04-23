@@ -23,7 +23,7 @@ _edp_completions() {
     for ((i=1; i<COMP_CWORD; i++)); do
         case "${COMP_WORDS[i]}" in
             -*) continue ;;
-            init|run|status|retry|graph)
+            init|run|status|retry|graph|doctor)
                 subcmd="${COMP_WORDS[i]}"
                 break
                 ;;
@@ -32,7 +32,7 @@ _edp_completions() {
 
     # No subcommand yet
     if [[ -z "$subcmd" ]]; then
-        COMPREPLY=($(compgen -W "init run status retry graph -h --help" -- "$cur"))
+        COMPREPLY=($(compgen -W "init run status retry graph doctor -h --help" -- "$cur"))
         return
     fi
 
@@ -86,6 +86,9 @@ _edp_completions() {
                 -o|--output)    compopt -o nospace -o default; COMPREPLY=(); return ;;
             esac
             COMPREPLY=($(compgen -W "-f --format -o --output -select --select -h --help" -- "$cur"))
+            ;;
+        doctor)
+            COMPREPLY=($(compgen -W "--strict --json -h --help" -- "$cur"))
             ;;
     esac
 }
