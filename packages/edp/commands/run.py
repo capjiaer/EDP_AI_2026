@@ -114,8 +114,12 @@ def _print_report(report) -> None:
               help='Preview mode, no actual execution')
 @click.option('--force', is_flag=True, default=False,
               help='Force rerun, ignore existing state')
+@click.option('-debug', '--debug', is_flag=True, default=False,
+              help='Run in debug mode (execute *_debug.sh / LSF -Ip)')
+@click.option('-info', '--info', 'info_mode', is_flag=True, default=False,
+              help='Show full error details on step failure')
 @click.pass_context
-def run(ctx, step, from_step, to_step, skip_steps, dry_run, force):
+def run(ctx, step, from_step, to_step, skip_steps, dry_run, force, debug, info_mode):
     """Execute workflow."""
     edp_center = ctx.obj['edp_center']
     if not edp_center:
@@ -134,6 +138,7 @@ def run(ctx, step, from_step, to_step, skip_steps, dry_run, force):
         context['branch_path'],
         context['flow_overlay_path'],
     )
+    click.echo(f"Shell mode: {sb.preferred_shell}")
     state_file = context['branch_path'] / 'state.yaml'
     state_store = StateStore(state_file)
 
@@ -148,6 +153,8 @@ def run(ctx, step, from_step, to_step, skip_steps, dry_run, force):
             state_store=state_store,
             dry_run=dry_run,
             force=force,
+            debug=debug,
+            verbose=info_mode,
         )
         report = executor.run_single(tool_name, step_name)
         _print_report(report)
@@ -197,6 +204,8 @@ def run(ctx, step, from_step, to_step, skip_steps, dry_run, force):
             dry_run=dry_run,
             skip_steps=list(skip_steps),
             force=force,
+            debug=debug,
+            verbose=info_mode,
         )
         report = executor.run(resume=do_resume)
         _print_report(report)
@@ -261,6 +270,8 @@ def run(ctx, step, from_step, to_step, skip_steps, dry_run, force):
         dry_run=dry_run,
         skip_steps=list(skip_steps),
         force=force,
+        debug=debug,
+        verbose=info_mode,
     )
     report = executor.run(resume=do_resume)
     _print_report(report)

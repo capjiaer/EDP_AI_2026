@@ -67,7 +67,7 @@ _edp_completions() {
                     COMPREPLY=($(compgen -W "$(_edp_read_cache STEPS)" -- "$cur"))
                     return ;;
             esac
-            COMPREPLY=($(compgen -W "-fr --from -to --to -skip --skip -dr --dry-run --force -h --help" -- "$cur"))
+            COMPREPLY=($(compgen -W "-fr --from -to --to -skip --skip -dr --dry-run --force -debug --debug -info --info -h --help" -- "$cur"))
             ;;
         status)
             COMPREPLY=($(compgen -W "-h --help" -- "$cur"))

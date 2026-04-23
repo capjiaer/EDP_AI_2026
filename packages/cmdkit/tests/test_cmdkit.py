@@ -101,12 +101,13 @@ pnr_innovus:
     def tearDown(self):
         shutil.rmtree(self.test_dir, ignore_errors=True)
 
-    def _builder(self, overlay=None) -> ScriptBuilder:
+    def _builder(self, overlay=None, preferred_shell=None) -> ScriptBuilder:
         return ScriptBuilder(
             flow_base_path=self.flow_base,
             workdir_path=self.workdir,
             overlay_path=overlay,
             common_packages_path=self.common_packages,
+            preferred_shell=preferred_shell,
         )
 
 
@@ -347,7 +348,7 @@ class TestShellGeneration(TestScriptBuilderBase):
         sh = builder.build_step_shell("pnr_innovus", "place")
 
         self.assertTrue(len(sh) > 0)
-        self.assertIn("#!/bin/csh", sh)
+        self.assertIn("#!/bin/bash", sh)
         self.assertIn("innovus", sh)
 
     def test_shell_edp_variables_resolved(self):
@@ -406,6 +407,22 @@ pnr_innovus:
         self.assertNotIn("extreme", sh)
         self.assertNotIn("{effort}", sh)
 
+    def test_debug_shell_uses_debug_tcl(self):
+        """debug shell 使用 *_debug.tcl"""
+        builder = self._builder()
+        sh = builder.build_step_shell("pnr_innovus", "place", debug=True)
+
+        self.assertIn("place_debug.tcl", sh)
+        self.assertNotIn("$edp(", sh)
+
+    def test_csh_shell_generated(self):
+        """支持单独生成 csh 脚本"""
+        builder = self._builder()
+        csh = builder.build_step_shell("pnr_innovus", "place", shell_type="csh")
+
+        self.assertIn("#!/bin/csh", csh)
+        self.assertIn("innovus", csh)
+
     def test_tool_level_var_resolved(self):
         """tool 级变量能被解析"""
         _write(self.flow_base / "cmds" / "pnr_innovus" / "config.yaml", """
@@ -460,7 +477,40 @@ class TestWriteStepScript(TestScriptBuilderBase):
         sh_path = self.workdir / "runs" / "pnr_innovus" / "place" / "place.sh"
         self.assertTrue(sh_path.exists())
         content = sh_path.read_text(encoding='utf-8')
+        self.assertIn("#!/bin/bash", content)
+        csh_path = self.workdir / "runs" / "pnr_innovus" / "place" / "place.csh"
+        self.assertFalse(csh_path.exists())
+
+    def test_write_creates_csh_in_runs_when_shell_is_csh(self):
+        builder = self._builder(preferred_shell="csh")
+        builder.write_step_script("pnr_innovus", "place")
+
+        csh_path = self.workdir / "runs" / "pnr_innovus" / "place" / "place.csh"
+        self.assertTrue(csh_path.exists())
+        content = csh_path.read_text(encoding='utf-8')
         self.assertIn("#!/bin/csh", content)
+        sh_path = self.workdir / "runs" / "pnr_innovus" / "place" / "place.sh"
+        self.assertFalse(sh_path.exists())
+
+    def test_write_debug_creates_debug_sh(self):
+        builder = self._builder()
+        builder.write_step_script("pnr_innovus", "place", debug=True)
+
+        sh_path = self.workdir / "runs" / "pnr_innovus" / "place" / "place_debug.sh"
+        self.assertTrue(sh_path.exists())
+        content = sh_path.read_text(encoding='utf-8')
+        self.assertIn("place_debug.tcl", content)
+        csh_path = self.workdir / "runs" / "pnr_innovus" / "place" / "place_debug.csh"
+        self.assertFalse(csh_path.exists())
+
+    def test_write_debug_creates_debug_csh_when_shell_is_csh(self):
+        builder = self._builder(preferred_shell="csh")
+        builder.write_step_script("pnr_innovus", "place", debug=True)
+
+        csh_path = self.workdir / "runs" / "pnr_innovus" / "place" / "place_debug.csh"
+        self.assertTrue(csh_path.exists())
+        content = csh_path.read_text(encoding='utf-8')
+        self.assertIn("place_debug.tcl", content)
 
     def test_write_creates_config_tcl(self):
         builder = self._builder()

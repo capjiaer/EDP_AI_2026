@@ -73,7 +73,7 @@ base config.yaml → overlay config.yaml → user_config.yaml
 | `cmds/{tool}/{step}_config.tcl` | 配置变量（configkit 生成） |
 | `cmds/{tool}/{step}.tcl` | 正常执行脚本 |
 | `cmds/{tool}/{step}_debug.tcl` | debug 交互脚本 |
-| `runs/{tool}/{step}/{step}.sh` | 启动包装（bsub/bash） |
+| `runs/{tool}/{step}/{step}.sh` or `.csh` | 启动包装（按当前 shell 自动选择） |
 
 ### Hook System
 
@@ -110,11 +110,14 @@ edp run drc            # 单步执行
 edp run -fr syn -to drc  # 子图执行
 edp run --dry-run      # 预览模式
 edp run --force        # 强制重跑
+edp run place -debug   # debug 启动（LSF 下走 -Ip）
+edp run place -debug -info  # 失败时打印完整诊断信息
 ```
 
 ## CLI Commands
 
 ```bash
+source edp.sh / source edp.csh                # 载入环境与补全
 edp init -prj dongting -ver P85          # 初始化项目
 edp init -blk pcie                       # 初始化 block workspace
 edp status                                # 查看执行状态
@@ -128,6 +131,12 @@ edp run [step] [options]                  # 执行
 - **Tcl 8.6+** (EDA tool scripting)
 - **LSF** (job scheduling)
 
+## Shell & Completion
+
+- Bash: `source edp.sh`，加载 `completions/edp.bash`
+- Csh/Tcsh: `source edp.csh`，加载 `completions/edp.csh`
+- 两套补全都支持 `run` 关键参数（`-debug/--debug`, `-info/--info`, `-fr/-to/-skip`）
+
 ## Development Status
 
 | Module | Status |
@@ -137,6 +146,8 @@ edp run [step] [options]                  # 执行
 | dirkit (init, hook templates) | Done |
 | flowkit (runner, executor, graph) | Done |
 | edp CLI (init/status/graph) | Done |
-| edp run --debug | Pending |
+| edp run -debug/--debug | Done |
+| edp run -info/--info | Done |
+| bash/csh completion | Done |
 
 See [TODO.md](TODO.md) for remaining issues.

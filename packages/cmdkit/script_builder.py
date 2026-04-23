@@ -14,6 +14,7 @@ cmdkit.script_builder - 脚本生成器
 另外根据 step.yaml 的 invoke 列表 + config.yaml 的变量值，生成 .sh 启动包装。
 """
 
+import os
 import re
 from pathlib import Path
 from typing import Dict, List, Optional
@@ -56,7 +57,8 @@ class ScriptBuilder:
                  flow_base_path: Path,
                  workdir_path: Path,
                  overlay_path: Optional[Path] = None,
-                 common_packages_path: Optional[Path] = None):
+                 common_packages_path: Optional[Path] = None,
+                 preferred_shell: Optional[str] = None):
         self.flow_base_path = Path(flow_base_path)
         self.workdir_path = Path(workdir_path)
         self.overlay_path = Path(overlay_path) if overlay_path else None
@@ -64,13 +66,23 @@ class ScriptBuilder:
             Path(common_packages_path) if common_packages_path
             else flow_base_path.parent.parent.parent.parent.parent / "common_packages"
         )
+        self.preferred_shell = self._detect_shell(preferred_shell)
 
         self.registry = StepRegistry()
         self.registry.load_with_override(self.flow_base_path, self.overlay_path)
 
+    @staticmethod
+    def _detect_shell(preferred_shell: Optional[str] = None) -> str:
+        """自动检测当前 shell，返回 bash 或 csh"""
+        shell_hint = (preferred_shell or os.environ.get("SHELL", "")).lower()
+        if "tcsh" in shell_hint or "csh" in shell_hint:
+            return "csh"
+        return "bash"
+
     # ── edp vars ──
 
-    def _build_edp_vars(self, tool_name: str, step_name: str) -> Dict[str, str]:
+    def _build_edp_vars(self, tool_name: str, step_name: str,
+                        debug: bool = False) -> Dict[str, str]:
         """构建 edp 命名空间变量（框架内置变量）"""
         parts = self.flow_base_path.parts
         try:
@@ -83,7 +95,8 @@ class ScriptBuilder:
 
         project = self.overlay_path.name if self.overlay_path else "common"
 
-        tcl_path = self.workdir_path / "cmds" / tool_name / f"{step_name}.tcl"
+        script_name = f"{step_name}_debug.tcl" if debug else f"{step_name}.tcl"
+        tcl_path = self.workdir_path / "cmds" / tool_name / script_name
         run_dir = self.workdir_path / "runs" / tool_name / step_name
 
         result = {
@@ -213,7 +226,8 @@ class ScriptBuilder:
 
         return '\n\n'.join(filter(None, sections))
 
-    def write_step_script(self, tool_name: str, step_name: str) -> Path:
+    def write_step_script(self, tool_name: str, step_name: str,
+                          debug: bool = False) -> Path:
         """生成 config.tcl + .tcl + _debug.tcl + .sh 并写入文件"""
         # 1. 生成 per-step config.tcl
         self._generate_config_tcl(tool_name, step_name)
@@ -229,14 +243,18 @@ class ScriptBuilder:
         debug_path = self.workdir_path / "cmds" / tool_name / f"{step_name}_debug.tcl"
         debug_path.write_text(debug_content, encoding='utf-8')
 
-        # 4. 生成 .sh 启动脚本 → runs/{tool}/{step}/
-        sh_content = self.build_step_shell(tool_name, step_name)
-        if sh_content:
+        # 4. 生成 shell 启动脚本（按当前 shell）→ runs/{tool}/{step}/
+        shell_content = self.build_step_shell(
+            tool_name, step_name, debug=debug
+        )
+        if shell_content:
             run_dir = self.workdir_path / "runs" / tool_name / step_name
             run_dir.mkdir(parents=True, exist_ok=True)
-            sh_path = run_dir / f"{step_name}.sh"
-            sh_path.write_text(sh_content, encoding='utf-8')
-            return sh_path
+            ext = ".csh" if self.preferred_shell == "csh" else ".sh"
+            script_name = f"{step_name}_debug{ext}" if debug else f"{step_name}{ext}"
+            script_path = run_dir / script_name
+            script_path.write_text(shell_content, encoding='utf-8')
+            return script_path
 
         return tcl_path
 
@@ -520,13 +538,14 @@ class ScriptBuilder:
 
     # ── Invoke Resolution ──
 
-    def _resolve_invoke(self, tool_name: str, step_name: str) -> str:
+    def _resolve_invoke(self, tool_name: str, step_name: str,
+                        debug: bool = False) -> str:
         """解析 invoke 列表，拼接成完整命令"""
         invoke_list = self.registry.get_invoke(tool_name, step_name)
         if not invoke_list:
             return ""
 
-        edp_vars = self._build_edp_vars(tool_name, step_name)
+        edp_vars = self._build_edp_vars(tool_name, step_name, debug=debug)
         config = self._load_config_dict(tool_name)
         tool_config = config.get(tool_name, {})
 
@@ -576,17 +595,21 @@ class ScriptBuilder:
 
     # ── .sh Generation ──
 
-    def build_step_shell(self, tool_name: str, step_name: str) -> str:
+    def build_step_shell(self, tool_name: str, step_name: str,
+                         debug: bool = False,
+                         shell_type: Optional[str] = None) -> str:
         """生成 .sh 启动脚本"""
-        command = self._resolve_invoke(tool_name, step_name)
+        command = self._resolve_invoke(tool_name, step_name, debug=debug)
         if not command:
             return ""
 
         run_dir = self.workdir_path / "runs" / tool_name / step_name
         tcl_path = self.workdir_path / "cmds" / tool_name / f"{step_name}.tcl"
 
+        actual_shell = self._detect_shell(shell_type) if shell_type else self.preferred_shell
+        shebang = "#!/bin/bash" if actual_shell == "bash" else "#!/bin/csh"
         lines = [
-            "#!/bin/csh",
+            shebang,
             f"# Generated by EDP Framework",
             f"# Step: {step_name}  Tool: {tool_name}",
             f"# Run directory: {_posix(run_dir.resolve())}",

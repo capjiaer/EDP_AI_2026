@@ -57,7 +57,9 @@ class Executor:
                  state_store: Optional[StateStore] = None,
                  dry_run: bool = False,
                  skip_steps: Optional[List[str]] = None,
-                 force: bool = False):
+                 force: bool = False,
+                 debug: bool = False,
+                 verbose: bool = False):
         self.workflow = workflow
         self.script_builder = script_builder
         self.judge = judge or default_judge
@@ -65,8 +67,31 @@ class Executor:
         self.dry_run = dry_run
         self.skip_steps = set(skip_steps or [])
         self.force = force
+        self.debug = debug
+        self.verbose = verbose
         self._step_results: Dict[str, StepResult] = {}
         self._default_runner = LocalRunner()
+
+    def _print_debug_launch(self, step_id: str, runner: Runner, script_path) -> None:
+        """debug 模式下打印执行入口信息"""
+        if not self.debug:
+            return
+        click.echo(f"[DEBUG] launching {step_id} via {type(runner).__name__}")
+        click.echo(f"[DEBUG] script: {script_path}")
+
+    def _print_failure_hint(self, step_id: str, result: StepResult) -> None:
+        """失败时打印简短诊断信息"""
+        if result.success:
+            return
+        click.echo(click.style(f"[FAIL] {step_id} execution failed.", fg='red'))
+        if result.error:
+            lines = result.error.strip().splitlines()
+            if self.verbose:
+                click.echo("       details:")
+                for line in lines:
+                    click.echo(f"         {line}")
+            else:
+                click.echo(f"       reason: {lines[0]}")
 
     def _get_runner(self, tool_name: str, step_name: str) -> Runner:
         """根据 config 动态选择 runner"""
@@ -75,6 +100,7 @@ class Executor:
             return LSFRunner(
                 queue=lsf_config.get('queue', 'normal'),
                 cpu_num=lsf_config.get('cpu_num', 1),
+                debug=self.debug,
             )
         return self._default_runner
 
@@ -137,7 +163,9 @@ class Executor:
         start = time.time()
         self._step_results = {}
 
-        sh_path = self.script_builder.write_step_script(tool_name, step_name)
+        sh_path = self.script_builder.write_step_script(
+            tool_name, step_name, debug=self.debug
+        )
 
         if self.dry_run:
             runner = self._get_runner(tool_name, step_name)
@@ -151,8 +179,10 @@ class Executor:
             )
 
         runner = self._get_runner(tool_name, step_name)
+        self._print_debug_launch(step_name, runner, sh_path)
         result = runner.run(step_name, sh_path, self.script_builder.workdir_path)
         self._step_results[step_name] = result
+        self._print_failure_hint(step_name, result)
 
         verdict = self.judge(result)
         if self.state_store:
@@ -195,7 +225,7 @@ class Executor:
 
         # 1. 生成脚本
         sh_path = self.script_builder.write_step_script(
-            step.tool_name, step_id
+            step.tool_name, step_id, debug=self.debug
         )
 
         # 2. 标记运行中
@@ -211,10 +241,12 @@ class Executor:
             )
         else:
             runner = self._get_runner(step.tool_name, step_id)
+            self._print_debug_launch(step_id, runner, sh_path)
             result = runner.run(
                 step_id, sh_path, self.script_builder.workdir_path
             )
         self._step_results[step_id] = result
+        self._print_failure_hint(step_id, result)
 
         # 4. 判定
         verdict = self.judge(result)

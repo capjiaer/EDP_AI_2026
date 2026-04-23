@@ -16,6 +16,13 @@ from pathlib import Path
 from .step import StepResult
 
 
+def _resolve_shell_executable(script_path: Path) -> str:
+    """根据脚本后缀选择执行器"""
+    if script_path.suffix.lower() == ".csh":
+        return "csh"
+    return "bash"
+
+
 class Runner(ABC):
     """Runner 基类"""
 
@@ -55,21 +62,29 @@ class LocalRunner(Runner):
 
         start = time.time()
         try:
+            shell_exec = _resolve_shell_executable(script_path)
             proc = subprocess.run(
-                ["bash", str(script_path)],
+                [shell_exec, str(script_path)],
                 cwd=str(workdir),
                 capture_output=True,
                 text=True,
                 timeout=self.timeout or None,
             )
             elapsed = time.time() - start
-            return StepResult(
+            result = StepResult(
                 step_id=step_name,
                 success=(proc.returncode == 0),
                 output=proc.stdout,
                 error=proc.stderr,
                 execution_time=elapsed,
             )
+            if not result.success:
+                launcher = _resolve_shell_executable(script_path)
+                hint = (f"Launcher: {launcher}\n"
+                        f"Script: {script_path}\n"
+                        f"Workdir: {workdir}\n")
+                result.error = hint + (result.error or "")
+            return result
         except subprocess.TimeoutExpired:
             elapsed = time.time() - start
             return StepResult(
@@ -92,7 +107,8 @@ class LSFRunner(Runner):
                  cpu_num: int = 1,
                  memory: str = "",
                  wall_time: str = "",
-                 extra_opts: str = ""):
+                 extra_opts: str = "",
+                 debug: bool = False):
         """
         Args:
             queue: 队列名称
@@ -106,6 +122,7 @@ class LSFRunner(Runner):
         self.memory = memory
         self.wall_time = wall_time
         self.extra_opts = extra_opts
+        self.debug = debug
 
     def run(self, step_name: str, script_path: Path, workdir: Path) -> StepResult:
         if not script_path.exists():
@@ -116,6 +133,7 @@ class LSFRunner(Runner):
             )
 
         cmd = self._build_bsub_cmd(step_name, script_path)
+        cmd_str = " ".join(cmd)
 
         start = time.time()
         try:
@@ -126,13 +144,19 @@ class LSFRunner(Runner):
                 text=True,
             )
             elapsed = time.time() - start
-            return StepResult(
+            result = StepResult(
                 step_id=step_name,
                 success=(proc.returncode == 0),
                 output=proc.stdout,
                 error=proc.stderr,
                 execution_time=elapsed,
             )
+            if not result.success:
+                hint = (f"LSF command: {cmd_str}\n"
+                        f"Script: {script_path}\n"
+                        f"Workdir: {workdir}\n")
+                result.error = hint + (result.error or "")
+            return result
         except Exception as e:
             elapsed = time.time() - start
             return StepResult(
@@ -144,7 +168,8 @@ class LSFRunner(Runner):
 
     def _build_bsub_cmd(self, step_name: str, script_path: Path) -> list:
         """构建 bsub 命令"""
-        cmd = ["bsub", "-K", "-J", step_name]
+        mode_flag = "-Ip" if self.debug else "-K"
+        cmd = ["bsub", mode_flag, "-J", step_name]
 
         if self.queue:
             cmd.extend(["-q", self.queue])
@@ -157,6 +182,6 @@ class LSFRunner(Runner):
         if self.extra_opts:
             cmd.extend(self.extra_opts.split())
 
-        cmd.append("bash")
+        cmd.append(_resolve_shell_executable(script_path))
         cmd.append(str(script_path))
         return cmd

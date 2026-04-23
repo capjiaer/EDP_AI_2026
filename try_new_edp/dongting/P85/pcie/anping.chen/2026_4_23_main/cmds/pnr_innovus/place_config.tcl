@@ -2,7 +2,7 @@
 # Config loading order (later overrides earlier):
 #   1. C:\Users\anping.chen\Desktop\rewrite_edp_continue\new_edp\resources\flow\initialize\SAMSUNG\S4\common_prj\cmds\pnr_innovus\config.yaml
 #   2. C:\Users\anping.chen\Desktop\rewrite_edp_continue\new_edp\resources\flow\initialize\SAMSUNG\S4\dongting\cmds\pnr_innovus\config.yaml
-#   3. C:\Users\anping.chen\Desktop\rewrite_edp_continue\try_new_edp\dongting\P85\pcie\anping.chen\2026_4_23_main\user_config.yaml
+#   3. C:\Users\anping.chen\Desktop\rewrite_edp_continue\new_edp\try_new_edp\dongting\P85\pcie\anping.chen\2026_4_23_main\user_config.yaml
 #
 # [override] = this file changed a value from an earlier file, [new] = new variable.
 #
@@ -10,8 +10,8 @@
 
 # --- framework variables ---
 set edp(step) {place}
-set edp(script) {C:/Users/anping.chen/Desktop/rewrite_edp_continue/try_new_edp/dongting/P85/pcie/anping.chen/2026_4_23_main/cmds/pnr_innovus/place.tcl}
-set edp(workdir) {C:/Users/anping.chen/Desktop/rewrite_edp_continue/try_new_edp/dongting/P85/pcie/anping.chen/2026_4_23_main/runs/pnr_innovus/place}
+set edp(script) {C:/Users/anping.chen/Desktop/rewrite_edp_continue/new_edp/try_new_edp/dongting/P85/pcie/anping.chen/2026_4_23_main/cmds/pnr_innovus/place.tcl}
+set edp(workdir) {C:/Users/anping.chen/Desktop/rewrite_edp_continue/new_edp/try_new_edp/dongting/P85/pcie/anping.chen/2026_4_23_main/runs/pnr_innovus/place}
 set edp(tool) {pnr_innovus}
 set edp(foundry) {SAMSUNG}
 set edp(node) {S4}
@@ -28,5 +28,5 @@ set pnr_innovus(place,lsf,queue) {high}
 
 # --- source from: C:\Users\anping.chen\Desktop\rewrite_edp_continue\new_edp\resources\flow\initialize\SAMSUNG\S4\dongting\cmds\pnr_innovus\config.yaml ---
 
-# --- source from: C:\Users\anping.chen\Desktop\rewrite_edp_continue\try_new_edp\dongting\P85\pcie\anping.chen\2026_4_23_main\user_config.yaml ---
+# --- source from: C:\Users\anping.chen\Desktop\rewrite_edp_continue\new_edp\try_new_edp\dongting\P85\pcie\anping.chen\2026_4_23_main\user_config.yaml ---
 

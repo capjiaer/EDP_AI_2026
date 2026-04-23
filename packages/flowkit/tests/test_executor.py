@@ -34,10 +34,15 @@ class MockScriptBuilder:
         self.workdir_path = workdir
         self.calls = []
 
-    def write_step_script(self, tool_name: str, step_name: str) -> Path:
-        self.calls.append((tool_name, step_name))
+    def get_lsf_config(self, tool_name: str, step_name: str) -> dict:
+        return {'lsf_mode': 0}
+
+    def write_step_script(self, tool_name: str, step_name: str,
+                          debug: bool = False) -> Path:
+        self.calls.append((tool_name, step_name, debug))
         # 创建假的 .sh 文件（MockRunner 不需要真实内容）
-        sh_path = self.workdir_path / "cmds" / tool_name / f"{step_name}.sh"
+        suffix = "_debug.sh" if debug else ".sh"
+        sh_path = self.workdir_path / "cmds" / tool_name / f"{step_name}{suffix}"
         sh_path.parent.mkdir(parents=True, exist_ok=True)
         sh_path.write_text("# mock", encoding='utf-8')
         return sh_path
@@ -543,6 +548,22 @@ class TestLSFRunner(unittest.TestCase):
         self.assertIn("4", cmd)
         self.assertIn("bash", cmd)
         self.assertEqual(cmd[-1], str(script))
+
+    def test_debug_bsub_uses_ip_mode(self):
+        """debug 模式使用 bsub -Ip"""
+        runner = LSFRunner(queue="normal", cpu_num=2, debug=True)
+        cmd = runner._build_bsub_cmd("place", Path("/tmp/test/place_debug.sh"))
+
+        self.assertIn("-Ip", cmd)
+        self.assertNotIn("-K", cmd)
+
+    def test_csh_script_uses_csh_launcher(self):
+        """csh 脚本使用 csh 启动器"""
+        runner = LSFRunner(queue="normal", cpu_num=1)
+        cmd = runner._build_bsub_cmd("place", Path("/tmp/test/place.csh"))
+
+        self.assertIn("csh", cmd)
+        self.assertNotIn("bash", cmd)
 
     def test_script_not_found(self):
         """脚本不存在时返回失败"""
