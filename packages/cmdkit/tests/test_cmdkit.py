@@ -153,6 +153,7 @@ class TestSourcePhase(TestScriptBuilderBase):
 
         self.assertIn("common.tcl", script)
         self.assertIn("tcl_packages", script)
+        self.assertIn("[base] source", script)
 
     def test_source_includes_hook_procs(self):
         """hooks 目录下的 proc 定义被 source"""

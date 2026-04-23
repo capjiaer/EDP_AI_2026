@@ -29,7 +29,8 @@ def _posix(p: Path) -> str:
 
 
 def _source_block(lines: list, comment: str, search_dir: Path,
-                  exclude: Optional[List[str]] = None) -> None:
+                  exclude: Optional[List[str]] = None,
+                  source_tag: Optional[str] = None) -> None:
     """向 lines 追加一个 source 块，只有目录存在且有 .tcl 文件时才追加"""
     if not search_dir.exists():
         return
@@ -42,6 +43,8 @@ def _source_block(lines: list, comment: str, search_dir: Path,
         return
     lines.append(f"# --- {comment} ---")
     for f in tcl_files:
+        if source_tag:
+            lines.append(f"# [{source_tag}] source {_posix(f.resolve())}")
         lines.append(f"source {_posix(f.resolve())}")
     lines.append("")
 
@@ -276,26 +279,14 @@ class ScriptBuilder:
         _source_block(lines, f"common_packages/{tool_name}",
                       self.common_packages_path / "tcl_packages" / tool_name)
 
-        tcl_base = self.flow_base_path / "tcl_packages"
-        if tcl_base.exists():
-            tcl_files = sorted(f for f in tcl_base.glob("*.tcl") if not f.name.startswith("README"))
-            if tcl_files:
-                lines.append("# --- tcl_packages (base) ---")
-                for f in tcl_files:
-                    lines.append(f"# [base] source {_posix(f.resolve())}")
-                    lines.append(f"source {_posix(f.resolve())}")
-                lines.append("")
+        _source_block(lines, "tcl_packages (base)",
+                      self.flow_base_path / "tcl_packages",
+                      source_tag="base")
 
         if self.overlay_path:
-            tcl_overlay = self.overlay_path / "tcl_packages"
-            if tcl_overlay.exists():
-                tcl_files = sorted(f for f in tcl_overlay.glob("*.tcl") if not f.name.startswith("README"))
-                if tcl_files:
-                    lines.append("# --- tcl_packages (overlay) ---")
-                    for f in tcl_files:
-                        lines.append(f"# [overlay] source {_posix(f.resolve())}")
-                        lines.append(f"source {_posix(f.resolve())}")
-                    lines.append("")
+            _source_block(lines, "tcl_packages (overlay)",
+                          self.overlay_path / "tcl_packages",
+                          source_tag="overlay")
 
         _source_block(lines, f"{tool_name}/procs",
                       self.flow_base_path / "cmds" / tool_name / "procs")
