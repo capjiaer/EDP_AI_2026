@@ -1,4 +1,0 @@
-# Step-level pre hook for pv_calibre.ipmerge
-Runs before ALL sub_steps of ipmerge.
-# Fill in your Tcl code below, or delete this file if not needed.
-

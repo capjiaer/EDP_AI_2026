@@ -1,4 +1,0 @@
-# Step-level post hook for pnr_innovus.floorplan
-Runs after ALL sub_steps of floorplan.
-# Fill in your Tcl code below, or delete this file if not needed.
-

@@ -17,6 +17,7 @@ cmdkit.script_builder - 脚本生成器
 import os
 import re
 import shlex
+from collections import defaultdict
 from pathlib import Path
 from typing import Dict, List, Optional
 
@@ -210,6 +211,7 @@ class ScriptBuilder:
 
     def build_step_script(self, tool_name: str, step_name: str) -> str:
         """生成某个 step 的完整 Tcl 脚本"""
+        self._validate_proc_conflicts(tool_name, step_name)
         sections = []
 
         header = self._build_header(tool_name, step_name)
@@ -261,6 +263,104 @@ class ScriptBuilder:
             return script_path
 
         return tcl_path
+
+    def _collect_source_files(self, tool_name: str, step_name: str,
+                              exclude: Optional[List[str]] = None) -> List[Path]:
+        """收集 Phase 1 中将被 source 的 Tcl 文件（按加载顺序）。"""
+        exclude = set(exclude or [])
+        source_files: List[Path] = []
+
+        def _append_glob_files(directory: Path) -> None:
+            if not directory.exists():
+                return
+            for f in sorted(directory.glob("*.tcl")):
+                if f.name.startswith("README") or f.name in exclude:
+                    continue
+                source_files.append(f.resolve())
+
+        _append_glob_files(self.common_packages_path / "tcl_packages" / "default")
+        _append_glob_files(self.common_packages_path / "tcl_packages" / tool_name)
+        _append_glob_files(self.flow_base_path / "tcl_packages")
+        if self.overlay_path:
+            _append_glob_files(self.overlay_path / "tcl_packages")
+        _append_glob_files(self.flow_base_path / "cmds" / tool_name / "procs")
+        _append_glob_files(self.flow_base_path / "cmds" / tool_name / "vendor_procs")
+
+        if self.registry.has_step(tool_name, step_name):
+            steps_dir = self.flow_base_path / "cmds" / tool_name / "steps" / step_name
+            for sub in self.registry.get_sub_steps(tool_name, step_name):
+                sub_file = steps_dir / f"{sub}.tcl"
+                if sub_file.exists():
+                    source_files.append(sub_file.resolve())
+
+        hooks_dir = self.workdir_path / "hooks" / tool_name / step_name
+        if hooks_dir.exists():
+            hook_files = sorted(
+                f for f in hooks_dir.iterdir()
+                if (
+                    f.is_file()
+                    and not f.name.startswith('.')
+                    and self._is_effective_hook_file(f)
+                )
+            )
+            source_files.extend(f.resolve() for f in hook_files)
+
+        return source_files
+
+    def _validate_proc_conflicts(self, tool_name: str, step_name: str) -> None:
+        """检查 source 链路中的 proc 定义冲突（同名跨文件定义）。"""
+        proc_to_files = defaultdict(list)
+        for tcl_file in self._collect_source_files(tool_name, step_name):
+            try:
+                content = tcl_file.read_text(encoding='utf-8')
+            except Exception:
+                continue
+            for proc_name in self._PROC_DEF_PATTERN.findall(content):
+                proc_to_files[proc_name].append(tcl_file)
+
+        conflicts = {}
+        for proc_name, files in proc_to_files.items():
+            unique_files = []
+            seen = set()
+            for f in files:
+                s = str(f)
+                if s not in seen:
+                    seen.add(s)
+                    unique_files.append(s)
+            if len(unique_files) > 1:
+                conflicts[proc_name] = unique_files
+
+        if not conflicts:
+            return
+
+        details = []
+        for proc_name, files in sorted(conflicts.items()):
+            details.append(f"- {proc_name}")
+            for f in files:
+                details.append(f"    - {self._pretty_conflict_path(f)}")
+        raise ValueError(
+            f"Proc definition conflicts detected for {tool_name}.{step_name}:\n"
+            + "\n".join(details)
+        )
+
+    def _pretty_conflict_path(self, file_path: str) -> str:
+        """将冲突路径格式化为更易读的相对路径。"""
+        p = Path(file_path)
+        bases = [
+            self.workdir_path.resolve(),
+            self.flow_base_path.resolve(),
+            self.common_packages_path.resolve(),
+        ]
+        if self.overlay_path:
+            bases.append(self.overlay_path.resolve())
+
+        for base in bases:
+            try:
+                rel = p.resolve().relative_to(base)
+                return f"{base.name}/{_posix(rel)}"
+            except Exception:
+                continue
+        return _posix(p.resolve())
 
     # ── Phase 1: Source ──
 
@@ -320,7 +420,11 @@ class ScriptBuilder:
         if hooks_dir.exists():
             hook_files = sorted(
                 f for f in hooks_dir.iterdir()
-                if f.is_file() and not f.name.startswith('.')
+                if (
+                    f.is_file()
+                    and not f.name.startswith('.')
+                    and self._is_effective_hook_file(f)
+                )
             )
             if hook_files:
                 lines.append(f"# --- hooks/{tool_name}/{step_name} (proc definitions) ---")
@@ -364,39 +468,14 @@ class ScriptBuilder:
         sub_steps = self.registry.get_sub_steps(tool_name, step_name)
         steps_dir = self.flow_base_path / "cmds" / tool_name / "steps" / step_name
 
-        # step.pre hook
-        step_pre = self._find_step_hook(tool_name, step_name, "pre")
-        if step_pre:
-            proc_name = f"{step_name}_step_pre"
-            lines.append(f"# --- step.pre: {proc_name} ---")
-            lines.append(f"if {{[info procs {proc_name}] ne \"\"}} {{ {proc_name} }}")
-            lines.append("")
-
         for sub in sub_steps:
             sub_file = steps_dir / f"{sub}.tcl"
             source_comment = _posix(sub_file.resolve()) if sub_file.exists() else f"{_posix(sub_file)} (not found)"
             lines.append(f"# {source_comment}")
             lines.append("")
 
-            # sub_step.pre hook
-            pre_proc = f"{step_name}_{sub}_pre"
-            lines.append(f"if {{[info procs {pre_proc}] ne \"\"}} {{ {pre_proc} }}")
-
             # sub_step call
             lines.append(sub)
-            lines.append("")
-
-            # sub_step.post hook
-            post_proc = f"{step_name}_{sub}_post"
-            lines.append(f"if {{[info procs {post_proc}] ne \"\"}} {{ {post_proc} }}")
-            lines.append("")
-
-        # step.post hook
-        step_post = self._find_step_hook(tool_name, step_name, "post")
-        if step_post:
-            proc_name = f"{step_name}_step_post"
-            lines.append(f"# --- step.post: {proc_name} ---")
-            lines.append(f"if {{[info procs {proc_name}] ne \"\"}} {{ {proc_name} }}")
             lines.append("")
 
         return '\n'.join(lines)
@@ -421,6 +500,39 @@ class ScriptBuilder:
         if hook_file.exists():
             return hook_file
         return None
+
+    def _find_sub_step_hook(self, tool_name: str, step_name: str,
+                            sub_step: str, hook_type: str) -> Optional[Path]:
+        """查找 sub-step 级 hook（例如 global_place.pre/post）"""
+        filename = f"{sub_step}.{hook_type}"
+        # workdir 优先
+        hooks_dir = self.workdir_path / "hooks" / tool_name / step_name
+        hook_file = hooks_dir / filename
+        if hook_file.exists():
+            return hook_file
+        # overlay
+        if self.overlay_path:
+            hook_file = self.overlay_path / "hooks" / tool_name / step_name / filename
+            if hook_file.exists():
+                return hook_file
+        # base
+        hook_file = self.flow_base_path / "hooks" / tool_name / step_name / filename
+        if hook_file.exists():
+            return hook_file
+        return None
+
+    @staticmethod
+    def _is_effective_hook_file(hook_file: Path) -> bool:
+        """判断 hook 文件是否是有效自定义实现（过滤 init 默认模板）。"""
+        if not hook_file.exists() or not hook_file.is_file():
+            return False
+        content = hook_file.read_text(encoding='utf-8').strip()
+        if not content:
+            return False
+        # init 生成的默认模板占位内容，不应被执行或调用
+        if "your code here" in content.lower():
+            return False
+        return True
 
     # ── Header ──
 
@@ -466,6 +578,7 @@ class ScriptBuilder:
     _EDP_PATTERN = re.compile(r'\$edp\((\w+)\)')
     _VAR_PATTERN = re.compile(r'\$(\w+)')
     _UNSAFE_SHELL_PATTERNS = ("&&", "||", ";", "$(", "`", "\n", "\r")
+    _PROC_DEF_PATTERN = re.compile(r'^\s*proc\s+([^\s\{]+)\s*\{', re.MULTILINE)
 
     def _load_config_dict(self, tool_name: str) -> dict:
         """加载 config.yaml 覆盖链，返回原始字典"""

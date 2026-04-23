@@ -163,6 +163,47 @@ class TestSourcePhase(TestScriptBuilderBase):
         self.assertIn("global_place.pre", script)
         self.assertIn("global_place.post", script)
 
+    def test_conflicting_proc_definitions_raise(self):
+        """同名 proc 若在不同 source 文件重复定义，应 fail-fast。"""
+        _write(self.flow_base / "cmds" / "pnr_innovus" / "procs" / "dup.tcl", """
+proc global_place {} {
+    puts "duplicate"
+}
+""")
+        builder = self._builder()
+        with self.assertRaises(ValueError):
+            builder.build_step_script("pnr_innovus", "place")
+
+    def test_conflict_error_message_is_grouped_and_readable(self):
+        """冲突报错应包含 proc 分组与可读路径。"""
+        _write(self.flow_base / "cmds" / "pnr_innovus" / "procs" / "dup.tcl", """
+proc global_place {} {
+    puts "duplicate"
+}
+""")
+        builder = self._builder()
+        with self.assertRaises(ValueError) as ctx:
+            builder.build_step_script("pnr_innovus", "place")
+        msg = str(ctx.exception)
+        self.assertIn("Proc definition conflicts detected for pnr_innovus.place", msg)
+        self.assertIn("- global_place", msg)
+        self.assertIn("flow_base/cmds/pnr_innovus/steps/place/global_place.tcl", msg)
+        self.assertIn("flow_base/cmds/pnr_innovus/procs/dup.tcl", msg)
+
+    def test_duplicate_proc_within_same_file_is_allowed(self):
+        """同一文件内重复定义不判定为跨文件冲突。"""
+        _write(self.flow_base / "cmds" / "pnr_innovus" / "steps" / "place" / "global_place.tcl", """
+proc global_place {} {
+    puts "v1"
+}
+proc global_place {} {
+    puts "v2"
+}
+""")
+        builder = self._builder()
+        script = builder.build_step_script("pnr_innovus", "place")
+        self.assertIn("global_place.tcl", script)
+
 
 # ── Config ──
 
@@ -233,21 +274,20 @@ class TestExecutePhase(TestScriptBuilderBase):
         dp_idx = exec_section.index("detail_place")
         self.assertLess(gp_idx, dp_idx)
 
-    def test_hooks_wrapped_with_proc_guard(self):
-        """execute 阶段用 if {[info procs ...]} 包裹 hook 调用"""
+    def test_execute_does_not_emit_hook_calls(self):
+        """execute 阶段不显式调用 hook proc。"""
         builder = self._builder()
         script = builder.build_step_script("pnr_innovus", "place")
 
         exec_section = script.split("Phase 2: Execute")[1]
-        # pre hook proc guard
-        self.assertIn("if {[info procs place_global_place_pre] ne \"\"}", exec_section)
-        self.assertIn("place_global_place_pre", exec_section)
-        # post hook proc guard
-        self.assertIn("if {[info procs place_global_place_post] ne \"\"}", exec_section)
-        self.assertIn("place_global_place_post", exec_section)
+        self.assertNotIn("if {[info procs", exec_section)
+        self.assertNotIn("place_global_place_pre", exec_section)
+        self.assertNotIn("place_global_place_post", exec_section)
+        self.assertNotIn("place_step_pre", exec_section)
+        self.assertNotIn("place_step_post", exec_section)
 
     def test_no_hooks_when_none_defined(self):
-        """没有 hook 文件时，Phase 1 不 source hooks 目录，execute 用 guard 包裹（安全无副作用）"""
+        """没有 hook 文件时，Phase 1 不 source，execute 仅保留 sub_step 调用"""
         import shutil
         hooks_dir = self.workdir / "hooks" / "pnr_innovus" / "place"
         if hooks_dir.exists():
@@ -259,9 +299,32 @@ class TestExecutePhase(TestScriptBuilderBase):
         # Phase 1 不应该 source hooks 目录
         self.assertNotIn("global_place.pre", script)
         self.assertNotIn("global_place.post", script)
-        # execute 总是生成 guard（guard 本身安全，proc 不存在就不执行）
+        # execute 不生成 hook 调用
         exec_section = script.split("Phase 2: Execute")[1]
-        self.assertIn("if {[info procs place_global_place_pre]", exec_section)
+        self.assertNotIn("place_global_place_pre", exec_section)
+        self.assertNotIn("place_global_place_post", exec_section)
+        self.assertIn("global_place", exec_section)
+
+    def test_default_template_hooks_are_ignored(self):
+        """init 默认模板 hook（Your code here）不 source 不调用。"""
+        hooks_dir = self.workdir / "hooks" / "pnr_innovus" / "place"
+        _write(hooks_dir / "global_place.pre", """
+# template
+proc place_global_place_pre {} {
+    # Your code here
+}
+""")
+        _write(hooks_dir / "global_place.post", """
+# template
+proc place_global_place_post {} {
+    # Your code here
+}
+""")
+        builder = self._builder()
+        script = builder.build_step_script("pnr_innovus", "place")
+        exec_section = script.split("Phase 2: Execute")[1]
+        self.assertNotIn("place_global_place_pre", exec_section)
+        self.assertNotIn("place_global_place_post", exec_section)
 
 
 # ── Debug Script ──

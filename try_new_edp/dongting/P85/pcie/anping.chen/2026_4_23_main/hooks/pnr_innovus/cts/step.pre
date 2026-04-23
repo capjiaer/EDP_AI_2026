@@ -1,4 +1,0 @@
-# Step-level pre hook for pnr_innovus.cts
-Runs before ALL sub_steps of cts.
-# Fill in your Tcl code below, or delete this file if not needed.
-

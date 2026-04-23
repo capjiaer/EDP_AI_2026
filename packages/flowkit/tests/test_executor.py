@@ -87,6 +87,14 @@ def _make_workflow(step_deps, tool_map=None):
     return ExecutableWorkflow(graph=graph, steps=steps, tool_selection=tool_map or {sid: "mock_tool" for sid in all_ids})
 
 
+def _make_executor(wf, builder, runner=None, **kwargs):
+    """构建 Executor，并可注入 mock runner。"""
+    executor = Executor(wf, builder, **kwargs)
+    if runner is not None:
+        executor._default_runner = runner
+    return executor
+
+
 class TestDefaultJudge(unittest.TestCase):
     """测试默认判定函数"""
 
@@ -110,7 +118,7 @@ class TestExecutorLinearSuccess(unittest.TestCase):
             runner = MockRunner()
 
             wf = _make_workflow({"b": ["a"], "c": ["b"]})
-            executor = Executor(wf, builder, runner)
+            executor = _make_executor(wf, builder, runner=runner)
             report = executor.run()
 
         self.assertTrue(report.success)
@@ -137,7 +145,7 @@ class TestExecutorMidFailure(unittest.TestCase):
             })
 
             wf = _make_workflow({"b": ["a"], "c": ["b"]})
-            executor = Executor(wf, builder, runner)
+            executor = _make_executor(wf, builder, runner=runner)
             report = executor.run()
 
         self.assertFalse(report.success)
@@ -164,7 +172,7 @@ class TestExecutorFirstFailure(unittest.TestCase):
             })
 
             wf = _make_workflow({"b": ["a"], "c": ["b"]})
-            executor = Executor(wf, builder, runner)
+            executor = _make_executor(wf, builder, runner=runner)
             report = executor.run()
 
         self.assertFalse(report.success)
@@ -202,7 +210,7 @@ class TestExecutorTerminalDetection(unittest.TestCase):
             for step in wf.steps.values():
                 step.update_status(StepStatus.FINISHED)
 
-            executor = Executor(wf, builder, runner)
+            executor = _make_executor(wf, builder, runner=runner)
             report = executor.run()
 
         self.assertTrue(report.success)
@@ -225,7 +233,7 @@ class TestExecutorParallelBranch(unittest.TestCase):
             runner = MockRunner()
 
             wf = _make_workflow({"b": ["a"], "c": ["a"]})
-            executor = Executor(wf, builder, runner)
+            executor = _make_executor(wf, builder, runner=runner)
             report = executor.run()
 
         self.assertTrue(report.success)
@@ -249,7 +257,7 @@ class TestExecutorDiamondDependency(unittest.TestCase):
 
             # a → c, b → c（c 有两个前驱）
             wf = _make_workflow({"c": ["a", "b"]})
-            executor = Executor(wf, builder, runner)
+            executor = _make_executor(wf, builder, runner=runner)
             report = executor.run()
 
         self.assertTrue(report.success)
@@ -274,7 +282,7 @@ class TestExecutorDiamondDependency(unittest.TestCase):
             })
 
             wf = _make_workflow({"c": ["a", "b"]})
-            executor = Executor(wf, builder, runner)
+            executor = _make_executor(wf, builder, runner=runner)
             report = executor.run()
 
         self.assertFalse(report.success)
@@ -304,7 +312,7 @@ class TestExecutorBranchFailure(unittest.TestCase):
 
             # 依赖：c→a, d→c, b→a, e→b
             wf = _make_workflow({"c": ["a"], "d": ["c"], "b": ["a"], "e": ["b"]})
-            executor = Executor(wf, builder, runner)
+            executor = _make_executor(wf, builder, runner=runner)
             report = executor.run()
 
         self.assertFalse(report.success)
@@ -337,7 +345,7 @@ class TestExecutorCustomJudge(unittest.TestCase):
             })
 
             wf = _make_workflow({"b": ["a"]})
-            executor = Executor(wf, builder, runner, judge=always_pass)
+            executor = _make_executor(wf, builder, runner=runner, judge=always_pass)
             report = executor.run()
 
         # 即使 runner 返回 success=False，自定义 judge 判定为 FINISHED
@@ -457,7 +465,7 @@ class TestExecutorResume(unittest.TestCase):
             builder = MockScriptBuilder(workdir)
             runner = MockRunner()
             wf = _make_workflow({"b": ["a"], "c": ["b"]})
-            executor = Executor(wf, builder, runner, state_store=store)
+            executor = _make_executor(wf, builder, runner=runner, state_store=store)
             report = executor.run(resume=True)
 
             self.assertTrue(report.success)
@@ -478,7 +486,7 @@ class TestExecutorResume(unittest.TestCase):
             })
             store = StateStore(state_file)
             wf1 = _make_workflow({"b": ["a"], "c": ["b"]})
-            Executor(wf1, builder1, runner1, state_store=store).run()
+            _make_executor(wf1, builder1, runner=runner1, state_store=store).run()
 
             # 此时状态文件：a=FINISHED, b=FAILED
             saved = store.load()
@@ -490,7 +498,7 @@ class TestExecutorResume(unittest.TestCase):
             builder2 = MockScriptBuilder(workdir)
             runner2 = MockRunner()
             wf2 = _make_workflow({"b": ["a"], "c": ["b"]})
-            executor2 = Executor(wf2, builder2, runner2, state_store=store)
+            executor2 = _make_executor(wf2, builder2, runner=runner2, state_store=store)
             report = executor2.run(resume=True)
 
             # b 是 FAILED 不能重新跑，c 被阻塞
@@ -513,7 +521,7 @@ class TestExecutorResume(unittest.TestCase):
             builder = MockScriptBuilder(workdir)
             runner = MockRunner()
             wf = _make_workflow({"c": ["a", "b"]})
-            executor = Executor(wf, builder, runner, state_store=store)
+            executor = _make_executor(wf, builder, runner=runner, state_store=store)
             report = executor.run(resume=True)
 
             self.assertTrue(report.success)
@@ -533,7 +541,7 @@ class TestExecutorResume(unittest.TestCase):
             builder = MockScriptBuilder(workdir)
             runner = MockRunner()
             wf = _make_workflow({"b": ["a"], "c": ["b"]})
-            executor = Executor(wf, builder, runner, state_store=store)
+            executor = _make_executor(wf, builder, runner=runner, state_store=store)
             executor.run()  # 不传 resume
 
             # 全部从头跑

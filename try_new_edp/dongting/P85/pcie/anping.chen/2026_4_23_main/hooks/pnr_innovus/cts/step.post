@@ -1,4 +1,0 @@
-# Step-level post hook for pnr_innovus.cts
-Runs after ALL sub_steps of cts.
-# Fill in your Tcl code below, or delete this file if not needed.
-
