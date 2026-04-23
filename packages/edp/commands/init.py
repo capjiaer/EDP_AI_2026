@@ -83,7 +83,7 @@ def init(ctx, project, project_version, block, user_name, branch, link):
         # 校验项目存在并解析 foundry / node
         matches = wp_init.find_project(project)
         if not matches:
-            available = [m['project_name'] for m in wp_init.list_projects()]
+            available = [m['project'] for m in wp_init.list_projects()]
             raise click.ClickException(
                 f"Project '{project}' not found.\n"
                 f"  Available projects: {available}"
@@ -144,7 +144,7 @@ def init(ctx, project, project_version, block, user_name, branch, link):
     # 校验项目存在并解析 foundry / node
     matches = wp_init.find_project(project)
     if not matches:
-        available = [m['project_name'] for m in wp_init.list_projects()]
+        available = [m['project'] for m in wp_init.list_projects()]
         raise click.ClickException(
             f"Project '{project}' not found.\n"
             f"  Available projects: {available}"
@@ -190,5 +190,5 @@ def _resolve_foundry_node(wp_init, project, matches, node=None):
     nodes = sorted(set(m['node'] for m in matches))
     raise click.ClickException(
         f"Project '{project}' exists in multiple nodes: {nodes}.\n"
-        f"  Please specify -n (e.g. -n {nodes[0]})."
+        f"  Please specify -ver (e.g. -ver {nodes[0]})."
     )

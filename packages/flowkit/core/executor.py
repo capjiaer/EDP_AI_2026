@@ -213,7 +213,7 @@ class Executor:
                 self.state_store.save(step_id, StepStatus.FAILED, error=msg)
             self._step_results[step_id] = StepResult(
                 step_id=step_id, success=False,
-                exit_code=-1, execution_time=0.0, error=msg,
+                execution_time=0.0, error=msg,
             )
             return
 
