@@ -25,6 +25,7 @@ from configkit import (
     TclBridge,
     ConversionMode,
 )
+from configkit.exceptions import ConversionError
 
 
 class TestMergeDict(unittest.TestCase):
@@ -206,6 +207,12 @@ class TestTclBridge(unittest.TestCase):
         self.assertEqual(result_data['list'], [1, 2, 3])
         self.assertEqual(result_data['nested']['a'], 1)
         self.assertEqual(result_data['nested']['b'], [2, 3])
+
+    def test_rejects_unsafe_tcl_key(self):
+        """危险 Tcl 变量名应被拒绝，避免注入。"""
+        bridge = TclBridge()
+        with self.assertRaises(ConversionError):
+            bridge.dict_to_interp({'bad;name': 'value'})
 
 
 class TestBackwardCompatibility(unittest.TestCase):

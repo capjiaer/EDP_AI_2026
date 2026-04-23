@@ -63,6 +63,25 @@ class TestDirKit(unittest.TestCase):
         self.assertTrue(result.exists())
         self.assertTrue((result / "sub" / "b.txt").exists())
 
+    def test_copy_dir_with_ignore_patterns(self):
+        src_dir = Path(self.test_dir) / "src_dir"
+        src_dir.mkdir()
+        (src_dir / "keep.txt").write_text("keep")
+        (src_dir / "skip.log").write_text("skip")
+        (src_dir / "sub").mkdir()
+        (src_dir / "sub" / "skip.tmp").write_text("tmp")
+        (src_dir / "sub" / "keep.cfg").write_text("cfg")
+
+        result = self.dirkit.copy_dir(
+            str(src_dir),
+            "dst_dir",
+            ignore=["*.log", "sub/skip.tmp"],
+        )
+        self.assertTrue((result / "keep.txt").exists())
+        self.assertFalse((result / "skip.log").exists())
+        self.assertFalse((result / "sub" / "skip.tmp").exists())
+        self.assertTrue((result / "sub" / "keep.cfg").exists())
+
     def test_remove_file(self):
         f = Path(self.test_dir) / "test.txt"
         f.write_text("hello")

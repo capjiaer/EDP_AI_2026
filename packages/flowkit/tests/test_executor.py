@@ -345,6 +345,22 @@ class TestExecutorCustomJudge(unittest.TestCase):
         self.assertEqual(report.failed_steps, [])
 
 
+class TestExecutorDependencyReadiness(unittest.TestCase):
+    """测试依赖就绪判定边界"""
+
+    def test_strong_dependency_missing_implementation_blocks_step(self):
+        """强依赖上游缺失实现时，下游不能执行。"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            workdir = Path(tmpdir)
+            builder = MockScriptBuilder(workdir)
+
+            wf = _make_workflow({"b": ["a"]})
+            # 模拟 a 在图里存在但没有可执行实现（workflow.steps 缺失）
+            wf.steps = {"b": wf.steps["b"]}
+
+            executor = Executor(wf, builder)
+            self.assertFalse(executor._is_ready("b"))
+
 # ============================================================
 # StateStore 单元测试
 # ============================================================

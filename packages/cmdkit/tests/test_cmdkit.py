@@ -447,6 +447,21 @@ pnr_innovus:
 
         self.assertIn("/path/to/tech.lef", sh)
 
+    def test_shell_rejects_unsafe_invoke_pattern(self):
+        """invoke 含危险 shell 片段时应拒绝生成。"""
+        _write(self.flow_base / "cmds" / "pnr_innovus" / "step.yaml", """
+pnr_innovus:
+  supported_steps:
+    place:
+      invoke:
+        - "innovus -init $edp(script); rm -rf /"
+      sub_steps:
+        - global_place
+""")
+        builder = self._builder()
+        with self.assertRaises(ValueError):
+            builder.build_step_shell("pnr_innovus", "place")
+
 
 # ── File Writing ──
 

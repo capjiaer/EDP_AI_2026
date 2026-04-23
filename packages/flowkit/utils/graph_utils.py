@@ -216,11 +216,29 @@ class GraphOptimizer:
         """
         to_remove = []
 
-        for dep1 in graph.dependencies:
-            for dep2 in graph.dependencies:
-                # 检查是否是传递依赖
-                if dep1.to_step == dep2.from_step:
-                    to_remove.append(dep1)
+        def _has_alternative_path(start: str, end: str, excluded_dep) -> bool:
+            """检查去掉 excluded_dep 后，start 是否仍能到达 end。"""
+            queue = deque([start])
+            visited = {start}
+
+            while queue:
+                current = queue.popleft()
+                for dep in graph.dependencies:
+                    if dep is excluded_dep:
+                        continue
+                    if dep.from_step != current:
+                        continue
+                    nxt = dep.to_step
+                    if nxt == end:
+                        return True
+                    if nxt not in visited:
+                        visited.add(nxt)
+                        queue.append(nxt)
+            return False
+
+        for dep in list(graph.dependencies):
+            if _has_alternative_path(dep.from_step, dep.to_step, dep):
+                to_remove.append(dep)
 
         # 移除传递依赖
         for dep in to_remove:

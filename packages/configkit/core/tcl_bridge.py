@@ -19,6 +19,7 @@ ConfigKit Tcl 桥接器模块
 """
 
 import os
+import re
 from pathlib import Path
 from typing import Dict, Any, Optional, Union, List, Tuple
 from tkinter import Tcl
@@ -36,6 +37,7 @@ class TclBridge:
 
     # 类型信息数组名称
     TYPE_ARRAY_NAME = "__configkit_types__"
+    _SAFE_SEGMENT_PATTERN = re.compile(r"^[A-Za-z0-9_.-]+$")
 
     def __init__(self,
                  interp: Optional[Tcl] = None,
@@ -252,6 +254,7 @@ class TclBridge:
                            parent_keys: List[str]) -> None:
         """递归设置字典变量到 Tcl 解释器"""
         for key, value in data.items():
+            self._validate_tcl_segment(key)
             if isinstance(value, dict):
                 # 递归处理嵌套字典
                 # 对于 {'server': {'host': 'localhost'}}，我们希望：
@@ -269,6 +272,9 @@ class TclBridge:
                     # 这里key是'host'，parent_keys是['server']
                     top_key = parent_keys[0]  # 'server'
                     nested_keys = parent_keys[1:] + [key]  # ['host']
+                    self._validate_tcl_segment(top_key)
+                    for nested_key in nested_keys:
+                        self._validate_tcl_segment(nested_key)
                     array_indices = ','.join(nested_keys)  # 'host'
                     tcl_value = self.value_converter.py_to_tcl(value)
                     interp.eval(f"set {top_key}({array_indices}) {tcl_value}")
@@ -286,6 +292,7 @@ class TclBridge:
                             interp.eval(f"set {self.TYPE_ARRAY_NAME}({type_key}) string")
                 else:
                     # 顶层变量：enabled = "1"
+                    self._validate_tcl_segment(key)
                     tcl_value = self.value_converter.py_to_tcl(value)
                     interp.eval(f"set {key} {tcl_value}")
 
@@ -306,10 +313,14 @@ class TclBridge:
                           value: List[Any],
                           parent_keys: List[str]) -> None:
         """设置列表变量"""
+        self._validate_tcl_segment(key)
         if parent_keys:
             # 嵌套列表：server(ports) = [list 80 443 8080]
             top_key = parent_keys[0]
             nested_keys = parent_keys[1:] + [key]
+            self._validate_tcl_segment(top_key)
+            for nested_key in nested_keys:
+                self._validate_tcl_segment(nested_key)
             array_indices = ','.join(nested_keys)
             type_key = f"{top_key}({array_indices})"
         else:
@@ -355,6 +366,16 @@ class TclBridge:
             interp.eval(f"set {self.TYPE_ARRAY_NAME}({type_key}) list")
         else:
             interp.eval(f"set {self.TYPE_ARRAY_NAME}({type_key}) string")
+
+    def _validate_tcl_segment(self, segment: str) -> None:
+        """校验 Tcl 变量名片段，避免命令注入。"""
+        if not isinstance(segment, str) or not segment:
+            raise ConversionError("Invalid Tcl variable segment: empty or non-string")
+        if not self._SAFE_SEGMENT_PATTERN.fullmatch(segment):
+            raise ConversionError(
+                f"Invalid Tcl variable segment '{segment}'. "
+                "Only letters, digits, '_', '-', '.' are allowed."
+            )
 
     def _get_type_key(self, key: str, parent_keys: List[str]) -> str:
         """获取类型信息的键名"""

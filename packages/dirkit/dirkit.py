@@ -9,6 +9,7 @@ dirkit.dirkit - 目录和文件操作工具
 
 import os
 import shutil
+import fnmatch
 from pathlib import Path
 from typing import List, Optional, Union
 
@@ -107,8 +108,19 @@ class DirKit:
 
         if ignore:
             def ignore_func(directory, files):
-                return [f for f in files
-                        if f in ignore or any(f.startswith(i + os.sep) for i in ignore)]
+                rel_dir = Path(directory).resolve().relative_to(src_path.resolve())
+                ignored = []
+                for name in files:
+                    rel_path = (rel_dir / name).as_posix() if str(rel_dir) != "." else name
+                    if any(
+                        name == pattern
+                        or rel_path == pattern
+                        or fnmatch.fnmatch(name, pattern)
+                        or fnmatch.fnmatch(rel_path, pattern)
+                        for pattern in ignore
+                    ):
+                        ignored.append(name)
+                return ignored
             shutil.copytree(src_path, dst_path, ignore=ignore_func)
         else:
             shutil.copytree(src_path, dst_path)

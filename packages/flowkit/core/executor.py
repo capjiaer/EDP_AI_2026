@@ -276,7 +276,9 @@ class Executor:
             if dep.to_step == step_id:
                 source_step = self.workflow.steps.get(dep.from_step)
                 if source_step is None:
-                    continue
+                    if dep.weak:
+                        continue
+                    return False
                 source_status = source_step.status
                 if dep.weak:
                     continue  # 弱依赖不阻塞

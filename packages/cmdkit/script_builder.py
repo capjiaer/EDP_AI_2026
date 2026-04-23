@@ -16,6 +16,7 @@ cmdkit.script_builder - 脚本生成器
 
 import os
 import re
+import shlex
 from pathlib import Path
 from typing import Dict, List, Optional
 
@@ -464,6 +465,7 @@ class ScriptBuilder:
     _COND_PATTERN = re.compile(r'\{(\w+)\}')
     _EDP_PATTERN = re.compile(r'\$edp\((\w+)\)')
     _VAR_PATTERN = re.compile(r'\$(\w+)')
+    _UNSAFE_SHELL_PATTERNS = ("&&", "||", ";", "$(", "`", "\n", "\r")
 
     def _load_config_dict(self, tool_name: str) -> dict:
         """加载 config.yaml 覆盖链，返回原始字典"""
@@ -580,9 +582,19 @@ class ScriptBuilder:
                 value = _resolve_var(var_name)
                 item = item.replace(f"${var_name}", value)
 
+            self._validate_safe_invoke_item(item, tool_name, step_name)
             resolved_items.append(item)
 
         return " ".join(resolved_items)
+
+    def _validate_safe_invoke_item(self, item: str, tool_name: str, step_name: str) -> None:
+        """阻断高风险 shell 注入片段。"""
+        for pattern in self._UNSAFE_SHELL_PATTERNS:
+            if pattern in item:
+                raise ValueError(
+                    f"Unsafe shell pattern '{pattern}' found in invoke item "
+                    f"for {tool_name}.{step_name}: {item}"
+                )
 
     # ── .sh Generation ──
 
@@ -605,7 +617,7 @@ class ScriptBuilder:
             f"# Step: {step_name}  Tool: {tool_name}",
             f"# Run directory: {_posix(run_dir.resolve())}",
             "",
-            f"cd {_posix(run_dir.resolve())}",
+            f"cd {shlex.quote(_posix(run_dir.resolve()))}",
             command,
         ]
         return '\n'.join(lines)
