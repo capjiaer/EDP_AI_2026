@@ -17,38 +17,13 @@ cmdkit.script_builder - 脚本生成器
 import os
 import re
 import shlex
-from collections import defaultdict
 from pathlib import Path
 from typing import Dict, List, Optional
 
 from configkit import yamlfiles2dict, files2tcl
 from flowkit.loader.step_loader import StepRegistry
-
-
-def _posix(p: Path) -> str:
-    """将路径转换为正斜杠格式（Tcl 兼容）"""
-    return str(p).replace('\\', '/')
-
-
-def _source_block(lines: list, comment: str, search_dir: Path,
-                  exclude: Optional[List[str]] = None,
-                  source_tag: Optional[str] = None) -> None:
-    """向 lines 追加一个 source 块，只有目录存在且有 .tcl 文件时才追加"""
-    if not search_dir.exists():
-        return
-    exclude = exclude or []
-    tcl_files = sorted(
-        f for f in search_dir.glob("*.tcl")
-        if not f.name.startswith("README") and f.name not in exclude
-    )
-    if not tcl_files:
-        return
-    lines.append(f"# --- {comment} ---")
-    for f in tcl_files:
-        if source_tag:
-            lines.append(f"# [{source_tag}] source {_posix(f.resolve())}")
-        lines.append(f"source {_posix(f.resolve())}")
-    lines.append("")
+from ._proc_conflict import validate_proc_conflicts
+from ._script_utils import _posix, _source_block
 
 
 class ScriptBuilder:
@@ -211,7 +186,7 @@ class ScriptBuilder:
 
     def build_step_script(self, tool_name: str, step_name: str) -> str:
         """生成某个 step 的完整 Tcl 脚本"""
-        self._validate_proc_conflicts(tool_name, step_name)
+        validate_proc_conflicts(self, tool_name, step_name)
         sections = []
 
         header = self._build_header(tool_name, step_name)
@@ -263,104 +238,6 @@ class ScriptBuilder:
             return script_path
 
         return tcl_path
-
-    def _collect_source_files(self, tool_name: str, step_name: str,
-                              exclude: Optional[List[str]] = None) -> List[Path]:
-        """收集 Phase 1 中将被 source 的 Tcl 文件（按加载顺序）。"""
-        exclude = set(exclude or [])
-        source_files: List[Path] = []
-
-        def _append_glob_files(directory: Path) -> None:
-            if not directory.exists():
-                return
-            for f in sorted(directory.glob("*.tcl")):
-                if f.name.startswith("README") or f.name in exclude:
-                    continue
-                source_files.append(f.resolve())
-
-        _append_glob_files(self.common_packages_path / "tcl_packages" / "default")
-        _append_glob_files(self.common_packages_path / "tcl_packages" / tool_name)
-        _append_glob_files(self.flow_base_path / "tcl_packages")
-        if self.overlay_path:
-            _append_glob_files(self.overlay_path / "tcl_packages")
-        _append_glob_files(self.flow_base_path / "cmds" / tool_name / "procs")
-        _append_glob_files(self.flow_base_path / "cmds" / tool_name / "vendor_procs")
-
-        if self.registry.has_step(tool_name, step_name):
-            steps_dir = self.flow_base_path / "cmds" / tool_name / "steps" / step_name
-            for sub in self.registry.get_sub_steps(tool_name, step_name):
-                sub_file = steps_dir / f"{sub}.tcl"
-                if sub_file.exists():
-                    source_files.append(sub_file.resolve())
-
-        hooks_dir = self.workdir_path / "hooks" / tool_name / step_name
-        if hooks_dir.exists():
-            hook_files = sorted(
-                f for f in hooks_dir.iterdir()
-                if (
-                    f.is_file()
-                    and not f.name.startswith('.')
-                    and self._is_effective_hook_file(f)
-                )
-            )
-            source_files.extend(f.resolve() for f in hook_files)
-
-        return source_files
-
-    def _validate_proc_conflicts(self, tool_name: str, step_name: str) -> None:
-        """检查 source 链路中的 proc 定义冲突（同名跨文件定义）。"""
-        proc_to_files = defaultdict(list)
-        for tcl_file in self._collect_source_files(tool_name, step_name):
-            try:
-                content = tcl_file.read_text(encoding='utf-8')
-            except Exception:
-                continue
-            for proc_name in self._PROC_DEF_PATTERN.findall(content):
-                proc_to_files[proc_name].append(tcl_file)
-
-        conflicts = {}
-        for proc_name, files in proc_to_files.items():
-            unique_files = []
-            seen = set()
-            for f in files:
-                s = str(f)
-                if s not in seen:
-                    seen.add(s)
-                    unique_files.append(s)
-            if len(unique_files) > 1:
-                conflicts[proc_name] = unique_files
-
-        if not conflicts:
-            return
-
-        details = []
-        for proc_name, files in sorted(conflicts.items()):
-            details.append(f"- {proc_name}")
-            for f in files:
-                details.append(f"    - {self._pretty_conflict_path(f)}")
-        raise ValueError(
-            f"Proc definition conflicts detected for {tool_name}.{step_name}:\n"
-            + "\n".join(details)
-        )
-
-    def _pretty_conflict_path(self, file_path: str) -> str:
-        """将冲突路径格式化为更易读的相对路径。"""
-        p = Path(file_path)
-        bases = [
-            self.workdir_path.resolve(),
-            self.flow_base_path.resolve(),
-            self.common_packages_path.resolve(),
-        ]
-        if self.overlay_path:
-            bases.append(self.overlay_path.resolve())
-
-        for base in bases:
-            try:
-                rel = p.resolve().relative_to(base)
-                return f"{base.name}/{_posix(rel)}"
-            except Exception:
-                continue
-        return _posix(p.resolve())
 
     # ── Phase 1: Source ──
 
