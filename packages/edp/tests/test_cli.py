@@ -52,6 +52,9 @@ class TestCLIHelp(unittest.TestCase):
         result = self.runner.invoke(cli, ["retry", "--help"])
         self.assertEqual(result.exit_code, 0)
         self.assertIn("STEP", result.output)
+        self.assertIn("--dry-run", result.output)
+        self.assertIn("--debug", result.output)
+        self.assertIn("--info", result.output)
 
     def test_graph_help(self):
         from edp.cli import cli

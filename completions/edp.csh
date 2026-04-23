@@ -25,7 +25,7 @@ set _edp_subcmds = (init run status retry graph -h --help)
 set _edp_init_opts = (-prj --project -w --work-path -n --node -ver --version -blk --block -br --branch --link --no-link -h --help)
 set _edp_run_opts = (-fr --from -to --to -skip --skip -dr --dry-run --force -debug --debug -info --info -h --help)
 set _edp_status_opts = (-h --help)
-set _edp_retry_opts = (-h --help)
+set _edp_retry_opts = (-dr --dry-run -debug --debug -info --info -h --help)
 set _edp_graph_opts = (-f --format -o --output -h --help)
 
 uncomplete edp >& /dev/null
@@ -46,7 +46,7 @@ complete edp 'N/-fr --from/($_edp_steps)/'
 complete edp 'N/-to --to/($_edp_steps)/'
 complete edp 'N/-skip --skip/($_edp_steps)/'
 
-# retry: step + help
+# retry: step + options
 complete edp 'n/retry/($_edp_steps $_edp_retry_opts)/'
 
 # status: help only

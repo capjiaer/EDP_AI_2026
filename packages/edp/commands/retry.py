@@ -18,8 +18,14 @@ from edp.context import _resolve_context, _pick_graph_config
 
 @click.command()
 @click.argument('step')
+@click.option('-dr', '--dry-run', is_flag=True, default=False,
+              help='Preview mode, no actual execution')
+@click.option('-debug', '--debug', is_flag=True, default=False,
+              help='Run in debug mode (execute *_debug.sh / LSF -Ip)')
+@click.option('-info', '--info', 'info_mode', is_flag=True, default=False,
+              help='Show full error details on step failure')
 @click.pass_context
-def retry(ctx, step):
+def retry(ctx, step, dry_run, debug, info_mode):
     """Retry a failed step (clear its state and resume)."""
     edp_center = ctx.obj['edp_center']
     if not edp_center:
@@ -80,8 +86,16 @@ def retry(ctx, step):
         context['branch_path'],
         context['flow_overlay_path'],
     )
+    click.echo(f"Shell mode: {sb.preferred_shell}")
 
-    executor = Executor(workflow, sb, state_store=state_store)
+    executor = Executor(
+        workflow,
+        sb,
+        state_store=state_store,
+        dry_run=dry_run,
+        debug=debug,
+        verbose=info_mode,
+    )
     report = executor.run(resume=True)
 
     click.echo("")

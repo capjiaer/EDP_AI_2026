@@ -78,7 +78,7 @@ _edp_completions() {
                     COMPREPLY=($(compgen -W "$(_edp_read_cache STEPS)" -- "$cur"))
                     return ;;
             esac
-            COMPREPLY=($(compgen -W "-h --help" -- "$cur"))
+            COMPREPLY=($(compgen -W "-dr --dry-run -debug --debug -info --info -h --help" -- "$cur"))
             ;;
         graph)
             case "$prev" in
