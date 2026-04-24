@@ -20,7 +20,6 @@ from configkit import (
     merge_dict,
     value_format_py2tcl,
     value_format_tcl2py,
-    files2tcl,
     DictOperations,
     ValueConverter,
     TclBridge,
@@ -233,50 +232,6 @@ class TestBackwardCompatibility(unittest.TestCase):
         dict2 = {'b': {'d': 3}, 'e': 4}
         result = merge_dict(dict1, dict2)
         self.assertEqual(result, {'a': 1, 'b': {'c': 2, 'd': 3}, 'e': 4})
-
-    def test_files2tcl_wrapper_matches_bridge_method(self):
-        """模块级 files2tcl 应与 TclBridge.files_to_tcl 行为一致。"""
-        with tempfile.TemporaryDirectory() as tmp_dir:
-            tmp_path = Path(tmp_dir)
-            base_yaml = tmp_path / "base.yaml"
-            overlay_yaml = tmp_path / "overlay.yaml"
-            out_func = tmp_path / "out_func.tcl"
-            out_method = tmp_path / "out_method.tcl"
-
-            base_yaml.write_text(
-                "pv_calibre:\n"
-                "  lsf:\n"
-                "    cpu_num: 4\n"
-                "base_path: /work/base\n",
-                encoding="utf-8",
-            )
-            overlay_yaml.write_text(
-                "pv_calibre:\n"
-                "  lsf:\n"
-                "    cpu_num: 8\n"
-                "report_dir: $base_path/reports\n",
-                encoding="utf-8",
-            )
-
-            files2tcl(
-                base_yaml,
-                overlay_yaml,
-                output_file=out_func,
-                edp_vars={"foundry": "SAMSUNG", "node": "S4"},
-            )
-
-            bridge = TclBridge()
-            bridge.files_to_tcl(
-                base_yaml,
-                overlay_yaml,
-                output_file=out_method,
-                edp_vars={"foundry": "SAMSUNG", "node": "S4"},
-            )
-
-            content_func = out_func.read_text(encoding="utf-8")
-            content_method = out_method.read_text(encoding="utf-8")
-            self.assertEqual(content_func, content_method)
-
 
 if __name__ == '__main__':
     # 运行测试

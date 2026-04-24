@@ -78,15 +78,6 @@ from .core.value_converter import (
     detect_tcl_list,
 )
 
-from .core.tcl_bridge_compat import (
-    dict2tclinterp,
-    tclinterp2dict,
-    tclinterp2tclfile,
-    tclfiles2tclinterp,
-    expand_variable_references,
-    files2tcl,
-)
-
 from .core.type_conversion import (
     get_var_type,
     convert_list_element,
@@ -159,16 +150,6 @@ __all__ = [
     'value_format_py2tcl',
     'value_format_tcl2py',
     'detect_tcl_list',
-
-    # Python <-> Tcl 转换函数
-    'dict2tclinterp',
-    'tclinterp2dict',
-    'expand_variable_references',
-
-    # 文件操作函数
-    'tclinterp2tclfile',
-    'tclfiles2tclinterp',
-    'files2tcl',
 
     # 类型转换函数
     'get_var_type',
