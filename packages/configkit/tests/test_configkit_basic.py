@@ -20,6 +20,7 @@ from configkit import (
     merge_dict,
     value_format_py2tcl,
     value_format_tcl2py,
+    files_to_tcl,
     DictOperations,
     ValueConverter,
     TclBridge,
@@ -233,6 +234,110 @@ class TestBackwardCompatibility(unittest.TestCase):
         result = merge_dict(dict1, dict2)
         self.assertEqual(result, {'a': 1, 'b': {'c': 2, 'd': 3}, 'e': 4})
 
+class TestFilesToTcl(unittest.TestCase):
+    """files_to_tcl 函数测试"""
+
+    def test_basic_yaml_to_tcl(self):
+        """单个 YAML 文件转 Tcl"""
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            src = tmp_path / "config.yaml"
+            out = tmp_path / "config.tcl"
+            src.write_text(
+                "pv_calibre:\n  lsf:\n    cpu_num: 4\n",
+                encoding="utf-8",
+            )
+            files_to_tcl(src, output_file=out)
+            content = out.read_text(encoding="utf-8")
+            self.assertIn("set pv_calibre(lsf,cpu_num) {4}", content)
+
+    def test_overlay_marks_override_and_new(self):
+        """后层文件覆盖前层时标注 [override]，新增变量标注 [new]"""
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            base = tmp_path / "base.yaml"
+            overlay = tmp_path / "overlay.yaml"
+            out = tmp_path / "out.tcl"
+            base.write_text("cpu_num: 4\n", encoding="utf-8")
+            overlay.write_text("cpu_num: 8\nextra: yes\n", encoding="utf-8")
+            files_to_tcl(base, overlay, output_file=out)
+            content = out.read_text(encoding="utf-8")
+            self.assertIn("[override]", content)
+            self.assertIn("[new]", content)
+
+    def test_edp_vars_written_to_header(self):
+        """edp_vars 写入文件头"""
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            src = tmp_path / "c.yaml"
+            out = tmp_path / "out.tcl"
+            src.write_text("k: v\n", encoding="utf-8")
+            files_to_tcl(src, output_file=out, edp_vars={"foundry": "SAMSUNG"})
+            content = out.read_text(encoding="utf-8")
+            self.assertIn("set edp(foundry) {SAMSUNG}", content)
+
+    def test_missing_file_warns_and_skips(self):
+        """不存在的输入文件发出警告并跳过，不崩溃"""
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            out = tmp_path / "out.tcl"
+            import logging
+            with self.assertLogs("configkit.core.tcl_file_emit", level="WARNING") as cm:
+                files_to_tcl(
+                    tmp_path / "nonexistent.yaml",
+                    output_file=out,
+                )
+            self.assertTrue(any("nonexistent" in msg for msg in cm.output))
+
+    def test_list_of_dicts_raises(self):
+        """list 内嵌 dict 应抛出 ValueError"""
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            src = tmp_path / "bad.yaml"
+            out = tmp_path / "out.tcl"
+            src.write_text(
+                "items:\n  - key: val\n",
+                encoding="utf-8",
+            )
+            with self.assertRaises(ValueError):
+                files_to_tcl(src, output_file=out)
+
+
+class TestTclBridgeExtra(unittest.TestCase):
+    """TclBridge 补充测试"""
+
+    def test_save_tcl_file_requires_output(self):
+        """save_tcl_file 不传 output_file 应抛出 ValueError"""
+        bridge = TclBridge()
+        bridge.dict_to_interp({"x": 1})
+        with self.assertRaises(ValueError):
+            bridge.save_tcl_file()
+
+    def test_save_and_reload(self):
+        """save_tcl_file 写出后可被 load_tcl_file 读回"""
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp) / "out.tcl"
+            bridge = TclBridge()
+            bridge.dict_to_interp({"a": {"b": 42}})
+            bridge.save_tcl_file(output_file=out)
+            result = bridge.load_tcl_file(out)
+            self.assertEqual(result["a"]["b"], 42)
+
+    def test_merge_and_expand_preserves_base_types(self):
+        """merge_and_expand 第二次加载不清空 base 的类型元数据"""
+        bridge = TclBridge()
+        base = {"count": 3}
+        overlay = {"label": "hello"}
+        result = bridge.merge_and_expand(base, overlay)
+        self.assertEqual(result["count"], 3)
+        self.assertEqual(result["label"], "hello")
+
+    def test_merge_and_expand_overlay_overrides(self):
+        """merge_and_expand overlay 值覆盖 base 值"""
+        bridge = TclBridge()
+        result = bridge.merge_and_expand({"x": 1}, {"x": 99})
+        self.assertEqual(result["x"], 99)
+
+
 if __name__ == '__main__':
-    # 运行测试
     unittest.main(verbosity=2)

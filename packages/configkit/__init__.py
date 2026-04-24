@@ -65,13 +65,6 @@ from .core import (
     TclBridge,
 )
 
-# 向后兼容的函数接口
-from .core.dict_ops import (
-    merge_dict,
-    yamlfiles2dict,
-    files2dict,
-)
-
 from .core.value_converter import (
     value_format_py2tcl,
     value_format_tcl2py,

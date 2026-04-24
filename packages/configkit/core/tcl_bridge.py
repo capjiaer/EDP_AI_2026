@@ -23,7 +23,7 @@ from pathlib import Path
 from typing import Dict, Any, Optional, Union, List
 from tkinter import Tcl
 
-from ..types import ConfigDict, ConversionMode, ValueType, TclInterpreter
+from ..types import ConversionMode
 from ..exceptions import TclError, ConversionError, FileError
 from .value_converter import ValueConverter
 
@@ -52,7 +52,8 @@ class TclBridge:
         self._type_info_enabled = True
 
     def dict_to_interp(self, data: Dict[str, Any],
-                       interp: Optional[Tcl] = None) -> Tcl:
+                       interp: Optional[Tcl] = None,
+                       _reset_types: bool = True) -> Tcl:
         """将 Python 字典转换为 Tcl 解释器
 
         同时记录类型信息以便正确转换回 Python。
@@ -60,6 +61,7 @@ class TclBridge:
         Args:
             data: 要转换的字典
             interp: 可选的 Tcl 解释器，如果为 None 则使用 self.interp
+            _reset_types: 是否重置类型信息数组（内部参数，勿手动传 False）
 
         Returns:
             包含字典数据的 Tcl 解释器
@@ -73,8 +75,8 @@ class TclBridge:
         """
         target_interp = interp if interp is not None else self.interp
 
-        # 初始化类型信息数组
-        if self._type_info_enabled:
+        # 初始化类型信息数组（仅在第一次加载时重置，避免覆盖已有元数据）
+        if self._type_info_enabled and _reset_types:
             target_interp.eval(f"array set {self.TYPE_ARRAY_NAME} {{}}")
 
         # 递归设置变量
@@ -164,8 +166,8 @@ class TclBridge:
         # 将基础字典转换到 Tcl 解释器
         self.dict_to_interp(base_dict)
 
-        # 添加新字典到解释器
-        self.dict_to_interp(new_dict)
+        # 追加新字典，不重置类型表，保留 base 已写入的类型元数据
+        self.dict_to_interp(new_dict, _reset_types=False)
 
         # 展开变量引用
         self.expand_variables()
@@ -215,13 +217,15 @@ class TclBridge:
 
     def save_tcl_file(self,
                       interp: Optional[Tcl] = None,
-                      output_file: Union[str, Path] = None) -> None:
+                      output_file: Union[str, Path] = "") -> None:
         """保存 Tcl 解释器到文件
 
         Args:
             interp: 可选的 Tcl 解释器
-            output_file: 输出文件路径
+            output_file: 输出文件路径（必填）
         """
+        if not output_file:
+            raise ValueError("output_file is required")
         target_interp = interp if interp is not None else self.interp
         output_path = Path(output_file)
 
@@ -376,16 +380,9 @@ class TclBridge:
                 "Only letters, digits, '_', '-', '.' are allowed."
             )
 
-    def _get_type_key(self, key: str, parent_keys: List[str]) -> str:
-        """获取类型信息的键名"""
-        if parent_keys:
-            return f"{key}({','.join(parent_keys)})"
-        return key
-
     def _has_type_info(self, interp: Tcl) -> bool:
         """检查解释器是否有类型信息"""
         try:
-            interp.eval(f"info exists {self.TYPE_ARRAY_NAME}")
             return interp.eval(f"info exists {self.TYPE_ARRAY_NAME}") == "1"
         except Exception:
             return False

@@ -11,7 +11,7 @@ from ._script_utils import _posix
 
 
 def generate_config_tcl(builder, tool_name: str, step_name: str) -> Path:
-    """用 configkit.files2tcl 生成 per-step 的 config.tcl。"""
+    """用 configkit.files_to_tcl 生成 per-step 的 config.tcl。"""
     config_files = []
 
     def _find_config(directory: Path, filename_stem: str) -> Optional[Path]:

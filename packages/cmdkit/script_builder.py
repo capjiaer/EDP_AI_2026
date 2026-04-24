@@ -8,15 +8,18 @@ cmdkit.script_builder - 脚本生成器
 
 生成的脚本分三个阶段：
   Phase 1: Source — source 所有 proc 定义和配置（绝对路径）
-  Config:  source config.tcl — 独立配置文件，由 configkit.files2tcl 生成
+  Config:  source config.tcl — 独立配置文件，由 configkit.files_to_tcl 生成
   Phase 2: Execute — 按 step.yaml 声明的顺序调用 sub_step，hook 按需包裹
 
 另外根据 step.yaml 的 invoke 列表 + config.yaml 的变量值，生成 .sh 启动包装。
 """
 
+import logging
 import os
 import re
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 from typing import Dict, List, Optional
 
 from configkit import yamlfiles2dict
@@ -122,7 +125,7 @@ class ScriptBuilder:
                     continue
                 content = f.read_text(encoding='utf-8').strip()
                 # 有内容且不只是模板注释（包含 "Your code here" 说明是空模板）
-                if content and "Your code here" not in content:
+                if content and "your code here" not in content.lower():
                     active_hooks.append(f.name)
         if active_hooks:
             result["invoked_hooks"] = " ".join(active_hooks)
@@ -132,7 +135,7 @@ class ScriptBuilder:
     # ── config.tcl 生成 ──
 
     def _generate_config_tcl(self, tool_name: str, step_name: str) -> Path:
-        """用 configkit.files2tcl 生成 per-step 的 config.tcl"""
+        """用 configkit.files_to_tcl 生成 per-step 的 config.tcl"""
         return _generate_config_tcl(self, tool_name, step_name)
 
     # ── 主入口 ──
@@ -376,7 +379,8 @@ class ScriptBuilder:
 
         try:
             return yamlfiles2dict(*config_files, expand_variables=False)
-        except Exception:
+        except Exception as exc:
+            logger.warning("Failed to load config files %s: %s", config_files, exc)
             return {}
 
     def get_lsf_config(self, tool_name: str, step_name: str) -> dict:

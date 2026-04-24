@@ -4,15 +4,19 @@
 """
 ConfigKit Tcl 文件输出模块。
 
-负责将 YAML/Tcl 配置链合成为单个 Tcl 文件，供 TclBridge 委托调用。
+将多个 YAML/Tcl 配置文件按覆盖链合成为单个 Tcl 文件，
+并标注各文件间的变量覆盖关系（[override] / [new]）。
 """
 
+import logging
 import re
 from pathlib import Path
 from tkinter import Tcl
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import yaml
+
+logger = logging.getLogger(__name__)
 
 
 def _flatten_dict(data: Dict[str, Any],
@@ -25,6 +29,14 @@ def _flatten_dict(data: Dict[str, Any],
         if isinstance(value, dict):
             result.extend(_flatten_dict(value, parent_keys + [key]))
         elif isinstance(value, list):
+            for i, elem in enumerate(value):
+                if isinstance(elem, dict):
+                    full_key = ".".join(parent_keys + [key])
+                    raise ValueError(
+                        f"Unsupported value at '{full_key}[{i}]': "
+                        "list elements must be scalars, not dicts. "
+                        "Use a nested mapping instead."
+                    )
             tcl_elements = " ".join(str(v) for v in value)
             if parent_keys:
                 tcl_key = f"{parent_keys[0]}({','.join(parent_keys[1:] + [key])})"
@@ -100,6 +112,7 @@ def files_to_tcl(*input_files: Union[str, Path],
         for file_idx, input_file in enumerate(input_files):
             file_path = Path(input_file)
             if not file_path.exists():
+                logger.warning("files_to_tcl: input file not found, skipping: %s", file_path)
                 continue
 
             out.write(f"# --- source from: {file_path.resolve()} ---\n")

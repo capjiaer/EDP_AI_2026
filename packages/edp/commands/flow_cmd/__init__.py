@@ -102,8 +102,9 @@ def _resolve_or_prompt_context(ctx) -> dict:
     edp_center = ctx.obj["edp_center"]
     try:
         return _resolve_context(ctx)
-    except Exception:
-        pass
+    except Exception as exc:
+        click.echo(f"[flowcreate] Context auto-detect failed ({exc}); "
+                   "switching to interactive project selection.", err=True)
 
     init_path = Path(edp_center) / "flow" / "initialize"
     finder = ProjectFinder(init_path)
