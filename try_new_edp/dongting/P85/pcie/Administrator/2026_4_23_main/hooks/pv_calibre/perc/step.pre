@@ -1,9 +1,0 @@
-# Step-level pre hook for pv_calibre.perc
-Runs before ALL sub_steps of perc.
-# Fill in your code inside the proc body, or delete this file if not needed.
-
-proc perc_step_pre {} {
-    global edp pnr_innovus pv_calibre
-
-    # Your code here
-}

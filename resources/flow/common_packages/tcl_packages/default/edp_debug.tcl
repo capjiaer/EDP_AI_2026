@@ -1,5 +1,5 @@
 # ============================================================
-# edp_debug.tcl — EDP Debug Mode Interactive CLI
+# edp_debug.tcl - EDP Debug Mode Interactive CLI
 #
 # Reads plan from edp() namespace (set by config.tcl):
 #   edp(step)           - step name
@@ -38,7 +38,7 @@ proc edp_debug_init {} {
     set total [llength $plan]
     puts ""
     puts "=========================================="
-    puts " EDP Debug Mode — $step"
+    puts " EDP Debug Mode - $step"
     puts " Sub-steps ($total): [edp_debug::_plan_string]"
     if {[info exists edp(invoked_hooks)] && $edp(invoked_hooks) ne ""} {
         puts " Active hooks: $edp(invoked_hooks)"
@@ -77,15 +77,15 @@ proc edp_debug::_find_idx {sub} {
 proc edp_debug::_run_one {sub pre_hook post_hook} {
     puts "--- Running: $sub ---"
     if {$pre_hook ne "" && [info procs $pre_hook] ne ""} {
-        puts "  \[hook\] $pre_hook"
-        if {[catch {$pre_hook} err]} { puts "  \[hook error\] $err" }
+        puts "  (hook) $pre_hook"
+        if {[catch {$pre_hook} err]} { puts "  (hook error) $err" }
     }
     if {[catch {$sub} err]} {
-        puts "  \[error\] $err"
+        puts "  (error) $err"
     }
     if {$post_hook ne "" && [info procs $post_hook] ne ""} {
-        puts "  \[hook\] $post_hook"
-        if {[catch {$post_hook} err]} { puts "  \[hook error\] $err" }
+        puts "  (hook) $post_hook"
+        if {[catch {$post_hook} err]} { puts "  (hook error) $err" }
     }
     set edp_debug::done($sub) 1
     puts "--- Done: $sub ---"
@@ -120,7 +120,7 @@ proc edp_steplist {} {
     puts "Step: $step  Tool: $edp(tool)"
 
     if {[info procs $step_pre] ne ""} {
-        puts "  \[pre\]  $step_pre"
+        puts "  (pre)  $step_pre"
     }
 
     set idx 0
@@ -140,17 +140,17 @@ proc edp_steplist {} {
         puts "  $mark  $sub"
 
         if {[info procs $pre] ne ""} {
-            puts "         \[pre\]    $pre"
+            puts "         (pre)    $pre"
         }
         if {[info procs $post] ne ""} {
-            puts "         \[post\]   $post"
+            puts "         (post)   $post"
         }
 
         incr idx
     }
 
     if {[info procs $step_post] ne ""} {
-        puts "  \[post\] $step_post"
+        puts "  (post) $step_post"
     }
     puts ""
 }
@@ -192,8 +192,8 @@ proc edp_next {} {
     if {$edp_debug::current_idx == 0} {
         set step_pre "${edp(step)}_step_pre"
         if {[info procs $step_pre] ne ""} {
-            puts "  \[step pre\] $step_pre"
-            if {[catch {$step_pre} err]} { puts "  \[step pre error\] $err" }
+            puts "  (step pre) $step_pre"
+            if {[catch {$step_pre} err]} { puts "  (step pre error) $err" }
         }
     }
 
@@ -202,7 +202,7 @@ proc edp_next {} {
         set item [lindex $edp_debug::plan $edp_debug::current_idx]
         set sub [lindex $item 0]
         if {![info exists edp_debug::done($sub)]} { break }
-        puts "  \[skip\] $sub (already done)"
+        puts "  (skip) $sub (already done)"
         incr edp_debug::current_idx
     }
 
@@ -224,8 +224,8 @@ proc edp_next {} {
         puts "All sub_steps completed."
         set step_post "${edp(step)}_step_post"
         if {[info procs $step_post] ne ""} {
-            puts "  \[step post\] $step_post"
-            if {[catch {$step_post} err]} { puts "  \[step post error\] $err" }
+            puts "  (step post) $step_post"
+            if {[catch {$step_post} err]} { puts "  (step post error) $err" }
         }
     }
 }

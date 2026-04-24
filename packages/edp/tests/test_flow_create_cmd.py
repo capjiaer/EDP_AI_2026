@@ -51,7 +51,6 @@ class TestFlowCreateCmd(unittest.TestCase):
                     "place",
                     "global_place,detail_place",
                     "innovus -init $edp(script)",
-                    "y",
                     "",
                 ])
                 result = self.runner.invoke(
@@ -66,7 +65,7 @@ class TestFlowCreateCmd(unittest.TestCase):
             self.assertTrue((root / "cmds" / "pnr_innovus" / "config.yaml").exists())
             self.assertTrue((root / "cmds" / "pnr_innovus" / "steps" / "place" / "global_place.tcl").exists())
             self.assertTrue((root / "cmds" / "pnr_innovus" / "steps" / "place" / "detail_place.tcl").exists())
-            self.assertTrue((root / "hooks" / "pnr_innovus" / "place" / "step.pre").exists())
+            self.assertFalse((root / "hooks" / "pnr_innovus" / "place").exists())
 
     def test_flow_create_existing_step_fails(self):
         from edp.cli import cli
@@ -91,7 +90,6 @@ class TestFlowCreateCmd(unittest.TestCase):
                         "--step", "place",
                         "--sub-steps", "global_place",
                         "--invoke", "innovus -init $edp(script)",
-                        "--with-hooks",
                     ],
                 )
 
@@ -113,7 +111,6 @@ class TestFlowCreateCmd(unittest.TestCase):
                         "--step", "cts",
                         "--sub-steps", "cts_init,cts_opt",
                         "--invoke", "innovus -init $edp(script)",
-                        "--no-hooks",
                     ],
                 )
 
@@ -141,7 +138,6 @@ class TestFlowCreateCmd(unittest.TestCase):
                     "place",                        # step
                     "global_place,detail_place",    # sub-steps
                     "innovus -init $edp(script)",   # invoke
-                    "y",                            # with-hooks
                     "",
                 ])
                 result = self.runner.invoke(
@@ -172,7 +168,6 @@ class TestFlowCreateCmd(unittest.TestCase):
                     "place",
                     "global_place",
                     "innovus -init $edp(script)",
-                    "n",
                     "",
                 ])
                 result = self.runner.invoke(
@@ -207,7 +202,6 @@ class TestFlowCreateCmd(unittest.TestCase):
                     "place",
                     "global_place",
                     "innovus -init $edp(script)",
-                    "n",
                     "",
                 ])
                 result = self.runner.invoke(
@@ -238,7 +232,6 @@ class TestFlowCreateCmd(unittest.TestCase):
                     "place",
                     "global_place",
                     "innovus -init $edp(script)",
-                    "n",
                     "",
                 ])
                 result = self.runner.invoke(

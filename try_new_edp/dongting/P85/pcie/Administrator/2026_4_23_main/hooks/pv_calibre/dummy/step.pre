@@ -1,9 +1,0 @@
-# Step-level pre hook for pv_calibre.dummy
-Runs before ALL sub_steps of dummy.
-# Fill in your code inside the proc body, or delete this file if not needed.
-
-proc dummy_step_pre {} {
-    global edp pnr_innovus pv_calibre
-
-    # Your code here
-}

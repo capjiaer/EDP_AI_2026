@@ -57,6 +57,24 @@ class TestDoctorCliE2E(unittest.TestCase):
                 self.assertNotEqual(result.exit_code, 0)
                 self.assertIn("Doctor found blocking issues.", result.output)
 
+    def test_doctor_fails_when_legacy_common_packages_exists(self):
+        from edp.cli import cli
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            (root / "flow" / "initialize").mkdir(parents=True, exist_ok=True)
+            (root / "common_packages").mkdir(parents=True, exist_ok=True)
+
+            with patch.object(self.doctor_module, "_resolve_context") as mock_context:
+                mock_context.side_effect = click.ClickException("not in branch path")
+                result = self.runner.invoke(
+                    cli,
+                    ["--edp-center", tmpdir, "doctor"],
+                    env={"SHELL": "/bin/bash"},
+                )
+                self.assertNotEqual(result.exit_code, 0)
+                self.assertIn("Legacy directory is not allowed", result.output)
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

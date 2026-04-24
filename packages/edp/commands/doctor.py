@@ -82,6 +82,20 @@ def doctor(ctx, strict, json_mode):
     else:
         _record(results, "OK", "initialize_path", f"initialize path: {init_path}")
 
+    legacy_common_packages = edp_center / "common_packages"
+    if legacy_common_packages.exists():
+        _record(
+            results,
+            "ERR",
+            "legacy_common_packages",
+            (
+                f"Legacy directory is not allowed: {legacy_common_packages}. "
+                "Use flow/common_packages only."
+            ),
+        )
+    else:
+        _record(results, "OK", "legacy_common_packages", "legacy common_packages directory not found")
+
     shell_hint = os.environ.get("SHELL", "")
     if shell_hint:
         _record(results, "OK", "shell_env", f"SHELL={shell_hint}")

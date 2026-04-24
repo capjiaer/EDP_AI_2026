@@ -44,13 +44,13 @@ new_edp/
 │   ├── dirkit/       # 目录管理（init, project finder）
 │   └── flowkit/      # 工作流引擎（graph, executor, runner）
 ├── resources/
-│   ├── flow/
-│   │   └── initialize/{foundry}/{node}/
-│   │       ├── common_prj/         # base flow（通用）
-│   │       └── {project}/          # overlay flow（项目级覆盖）
-│   └── common_packages/
-│       └── tcl_packages/default/
-│           └── edp_debug.tcl       # 交互式 debug CLI
+│   └── flow/
+│       ├── common_packages/        # 全局共享 tcl 包（default/<tool>）
+│       │   └── tcl_packages/default/
+│       │       └── edp_debug.tcl   # 交互式 debug CLI
+│       └── initialize/{foundry}/{node}/
+│           ├── common_prj/         # base flow（通用）
+│           └── {project}/          # overlay flow（项目级覆盖）
 ├── bin/edp                          # CLI 入口脚本
 ├── edp.sh / edp.csh                 # 环境设置脚本
 └── completions/                     # Tab 补全

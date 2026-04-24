@@ -1,9 +1,0 @@
-# Step-level pre hook for pnr_innovus.cts
-Runs before ALL sub_steps of cts.
-# Fill in your code inside the proc body, or delete this file if not needed.
-
-proc cts_step_pre {} {
-    global edp pnr_innovus pv_calibre
-
-    # Your code here
-}

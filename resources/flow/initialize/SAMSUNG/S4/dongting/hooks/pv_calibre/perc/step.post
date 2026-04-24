@@ -1,8 +1,0 @@
-# Step-level post hook for pv_calibre.perc
-# Fill in your code inside the proc body, or delete this file if not needed.
-
-proc perc_step_post {} {
-    global edp pv_calibre
-
-    # Your code here
-}

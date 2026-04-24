@@ -1,9 +1,0 @@
-# Step-level post hook for pnr_innovus.route
-Runs after ALL sub_steps of route.
-# Fill in your code inside the proc body, or delete this file if not needed.
-
-proc route_step_post {} {
-    global edp pnr_innovus pv_calibre
-
-    # Your code here
-}

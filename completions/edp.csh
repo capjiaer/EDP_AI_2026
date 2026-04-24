@@ -61,7 +61,7 @@ complete edp 'N/-o --output/f/'
 complete edp 'n/doctor/(--strict --json -h --help)/'
 
 # single-token alias: flowcreate
-complete edp 'n/flowcreate/(--tool --step --sub-steps --invoke --with-hooks --no-hooks -h --help)/'
+complete edp 'n/flowcreate/(--tool --step --sub-steps --invoke -h --help)/'
 complete edp 'N/--tool/(pnr_innovus pv_calibre sta_pt)/'
 complete edp "N/--step/($_edp_steps)/"
 complete edp "N/--sub-steps/($_edp_steps)/"

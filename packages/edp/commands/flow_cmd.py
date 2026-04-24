@@ -22,15 +22,13 @@ from dirkit import ProjectFinder
               help="Comma separated sub step names")
 @click.option("--invoke", "invoke_cmd", default=None,
               help="Invoke command template")
-@click.option("--with-hooks/--no-hooks", default=None,
-              help="Create hook templates (default: yes)")
 @click.pass_context
-def flow_create_alias(ctx, tool_name, step_name, sub_steps, invoke_cmd, with_hooks):
+def flow_create_alias(ctx, tool_name, step_name, sub_steps, invoke_cmd):
     """Create minimal flow scaffold (single entrypoint)."""
-    _flow_create_impl(ctx, tool_name, step_name, sub_steps, invoke_cmd, with_hooks)
+    _flow_create_impl(ctx, tool_name, step_name, sub_steps, invoke_cmd)
 
 
-def _flow_create_impl(ctx, tool_name, step_name, sub_steps, invoke_cmd, with_hooks):
+def _flow_create_impl(ctx, tool_name, step_name, sub_steps, invoke_cmd):
     """Interactive tutor: create minimal flow scaffold."""
     edp_center = ctx.obj["edp_center"]
     if not edp_center:
@@ -69,12 +67,6 @@ def _flow_create_impl(ctx, tool_name, step_name, sub_steps, invoke_cmd, with_hoo
         default=invoke_default,
         show_default=True,
     )
-    if with_hooks is None:
-        with_hooks = click.confirm(
-            "Create hook templates? (example: step.pre/global_place.pre)",
-            default=True,
-            show_default=True,
-        )
 
     created = _write_flow_scaffold(
         flow_root=flow_root,
@@ -82,7 +74,6 @@ def _flow_create_impl(ctx, tool_name, step_name, sub_steps, invoke_cmd, with_hoo
         step_name=step_name,
         sub_steps=parsed_sub_steps,
         invoke_cmd=invoke_cmd,
-        with_hooks=with_hooks,
     )
 
     click.echo(click.style("Flow scaffold created.", fg="green"))
@@ -94,7 +85,7 @@ def _flow_create_impl(ctx, tool_name, step_name, sub_steps, invoke_cmd, with_hoo
         click.echo(f"    - {p}")
     click.echo("")
     click.echo("Next steps:")
-    click.echo(f"  1) Review generated files under cmds/{tool_name}/ and hooks/{tool_name}/{step_name}/")
+    click.echo(f"  1) Review generated files under cmds/{tool_name}/")
     click.echo(f"  2) Add '{tool_name}.{step_name}' to step_config.yaml if needed")
     click.echo(f"  3) Run: edp run {step_name} --dry-run")
 
@@ -196,12 +187,10 @@ def _parse_sub_steps(raw: str) -> List[str]:
 
 
 def _write_flow_scaffold(flow_root: Path, tool_name: str, step_name: str,
-                         sub_steps: List[str], invoke_cmd: str,
-                         with_hooks: bool) -> List[Path]:
+                         sub_steps: List[str], invoke_cmd: str) -> List[Path]:
     created: List[Path] = []
     cmds_dir = flow_root / "cmds" / tool_name
     steps_dir = cmds_dir / "steps" / step_name
-    hooks_dir = flow_root / "hooks" / tool_name / step_name
 
     cmds_dir.mkdir(parents=True, exist_ok=True)
     steps_dir.mkdir(parents=True, exist_ok=True)
@@ -234,25 +223,6 @@ def _write_flow_scaffold(flow_root: Path, tool_name: str, step_name: str,
                 encoding="utf-8",
             )
             created.append(sub_file)
-
-    if with_hooks:
-        hooks_dir.mkdir(parents=True, exist_ok=True)
-        globals_str = f"global edp {tool_name}"
-        hook_specs = [
-            ("step.pre", f"{step_name}_step_pre", f"Step-level pre hook for {tool_name}.{step_name}"),
-            ("step.post", f"{step_name}_step_post", f"Step-level post hook for {tool_name}.{step_name}"),
-        ]
-        for sub in sub_steps:
-            hook_specs.extend([
-                (f"{sub}.pre", f"{step_name}_{sub}_pre", f"Pre hook for sub_step '{sub}'"),
-                (f"{sub}.post", f"{step_name}_{sub}_post", f"Post hook for sub_step '{sub}'"),
-                (f"{sub}.replace", f"{step_name}_{sub}_replace", f"Replace hook for sub_step '{sub}'"),
-            ])
-        for name, proc_name, desc in hook_specs:
-            hp = hooks_dir / name
-            if not hp.exists():
-                hp.write_text(_hook_template(desc, proc_name, globals_str), encoding="utf-8")
-                created.append(hp)
 
     return created
 
@@ -315,19 +285,3 @@ def _step_template(sub_step: str) -> str:
     ])
 
 
-def _hook_template(description: str, proc_name: str, globals_str: str) -> str:
-    lines = [
-        f"# {description}",
-        "# Fill in your code inside the proc body, or delete this file if not needed.",
-        "",
-        f"proc {proc_name} {{}} {{",
-    ]
-    if globals_str:
-        lines.append(f"    {globals_str}")
-    lines.extend([
-        "",
-        "    # Your code here",
-        "}",
-        "",
-    ])
-    return "\n".join(lines)

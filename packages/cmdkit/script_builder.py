@@ -47,14 +47,28 @@ class ScriptBuilder:
         self.flow_base_path = Path(flow_base_path)
         self.workdir_path = Path(workdir_path)
         self.overlay_path = Path(overlay_path) if overlay_path else None
-        self.common_packages_path = (
-            Path(common_packages_path) if common_packages_path
-            else flow_base_path.parent.parent.parent.parent.parent / "common_packages"
+        default_common_packages_path = (
+            self.flow_base_path.parent.parent.parent.parent.parent / "common_packages"
         )
+        resolved_common_packages_path = (
+            Path(common_packages_path) if common_packages_path else default_common_packages_path
+        )
+        self._validate_common_packages_path(resolved_common_packages_path)
+        self.common_packages_path = resolved_common_packages_path
         self.preferred_shell = self._detect_shell(preferred_shell)
 
         self.registry = StepRegistry()
         self.registry.load_with_override(self.flow_base_path, self.overlay_path)
+
+    @staticmethod
+    def _validate_common_packages_path(common_packages_path: Path) -> None:
+        """拒绝历史旧目录 resources/common_packages，避免双路径混用。"""
+        normalized = common_packages_path.resolve(strict=False).as_posix()
+        if normalized.endswith("/resources/common_packages"):
+            raise ValueError(
+                "Unsupported common_packages path: resources/common_packages is retired. "
+                "Use resources/flow/common_packages instead."
+            )
 
     @staticmethod
     def _detect_shell(preferred_shell: Optional[str] = None) -> str:
@@ -300,39 +314,19 @@ class ScriptBuilder:
 
     def _find_step_hook(self, tool_name: str, step_name: str,
                          hook_type: str) -> Optional[Path]:
-        """查找 step 级 hook（step.pre / step.post）"""
-        # workdir 优先
+        """查找 step 级 hook（step.pre / step.post），仅工作目录生效。"""
         hooks_dir = self.workdir_path / "hooks" / tool_name / step_name
         hook_file = hooks_dir / f"step.{hook_type}"
-        if hook_file.exists():
-            return hook_file
-        # overlay
-        if self.overlay_path:
-            hook_file = self.overlay_path / "hooks" / tool_name / step_name / f"step.{hook_type}"
-            if hook_file.exists():
-                return hook_file
-        # base
-        hook_file = self.flow_base_path / "hooks" / tool_name / step_name / f"step.{hook_type}"
         if hook_file.exists():
             return hook_file
         return None
 
     def _find_sub_step_hook(self, tool_name: str, step_name: str,
                             sub_step: str, hook_type: str) -> Optional[Path]:
-        """查找 sub-step 级 hook（例如 global_place.pre/post）"""
+        """查找 sub-step 级 hook（例如 global_place.pre/post），仅工作目录生效。"""
         filename = f"{sub_step}.{hook_type}"
-        # workdir 优先
         hooks_dir = self.workdir_path / "hooks" / tool_name / step_name
         hook_file = hooks_dir / filename
-        if hook_file.exists():
-            return hook_file
-        # overlay
-        if self.overlay_path:
-            hook_file = self.overlay_path / "hooks" / tool_name / step_name / filename
-            if hook_file.exists():
-                return hook_file
-        # base
-        hook_file = self.flow_base_path / "hooks" / tool_name / step_name / filename
         if hook_file.exists():
             return hook_file
         return None

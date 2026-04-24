@@ -105,7 +105,7 @@ _edp_completions() {
                     COMPREPLY=($(compgen -W "innovus\ -init\ \$edp\(script\) calibre\ -drc\ \$edp\(script\) pt_shell\ -file\ \$edp\(script\)" -- "$cur"))
                     return ;;
             esac
-            COMPREPLY=($(compgen -W "--tool --step --sub-steps --invoke --with-hooks --no-hooks -h --help" -- "$cur"))
+            COMPREPLY=($(compgen -W "--tool --step --sub-steps --invoke -h --help" -- "$cur"))
             ;;
     esac
 }

@@ -1,0 +1,5 @@
+sta_pt:
+  lsf:
+    lsf_mode: 0
+    cpu_num: 1
+    queue: normal
