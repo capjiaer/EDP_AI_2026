@@ -1,4 +1,4 @@
 # pnr_innovus/
-# Innovus (Place & Route) 专属 TCL 包
-# 提供 Innovus 相关的公共过程和工具函数
-# 可被所有使用 Innovus 的 node/project 引用
+# 全局共享 Innovus TCL 包（适用于所有 node/project）
+# 用于存放跨项目可复用的 Innovus helper/proc
+# 可被 common_prj/project 的同名过程覆盖
