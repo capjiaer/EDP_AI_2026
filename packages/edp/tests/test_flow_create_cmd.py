@@ -7,6 +7,7 @@ edp flow create command tests
 
 import tempfile
 import unittest
+import importlib
 from pathlib import Path
 from unittest.mock import patch
 
@@ -20,6 +21,7 @@ from click.testing import CliRunner
 class TestFlowCreateCmd(unittest.TestCase):
     def setUp(self):
         self.runner = CliRunner()
+        self.flow_module = importlib.import_module("edp.commands.flow_cmd")
 
     def _mock_context(self, tmp: Path):
         flow_overlay = tmp / "flow_overlay"
@@ -42,7 +44,7 @@ class TestFlowCreateCmd(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as tmpdir:
             tmp = Path(tmpdir)
-            with patch("edp.commands.flow_cmd._resolve_context") as mock_ctx:
+            with patch.object(self.flow_module, "_resolve_context") as mock_ctx:
                 mock_ctx.return_value = self._mock_context(tmp)
                 user_input = "\n".join([
                     "pnr_innovus",
@@ -54,7 +56,7 @@ class TestFlowCreateCmd(unittest.TestCase):
                 ])
                 result = self.runner.invoke(
                     cli,
-                    ["--edp-center", tmpdir, "flow", "create"],
+                    ["--edp-center", tmpdir, "flowcreate"],
                     input=user_input,
                 )
 
@@ -79,12 +81,12 @@ class TestFlowCreateCmd(unittest.TestCase):
                 encoding="utf-8",
             )
 
-            with patch("edp.commands.flow_cmd._resolve_context") as mock_ctx:
+            with patch.object(self.flow_module, "_resolve_context") as mock_ctx:
                 mock_ctx.return_value = ctx
                 result = self.runner.invoke(
                     cli,
                     [
-                        "--edp-center", tmpdir, "flow", "create",
+                        "--edp-center", tmpdir, "flowcreate",
                         "--tool", "pnr_innovus",
                         "--step", "place",
                         "--sub-steps", "global_place",
@@ -101,12 +103,12 @@ class TestFlowCreateCmd(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as tmpdir:
             tmp = Path(tmpdir)
-            with patch("edp.commands.flow_cmd._resolve_context") as mock_ctx:
+            with patch.object(self.flow_module, "_resolve_context") as mock_ctx:
                 mock_ctx.return_value = self._mock_context(tmp)
                 result = self.runner.invoke(
                     cli,
                     [
-                        "--edp-center", tmpdir, "flow", "create",
+                        "--edp-center", tmpdir, "flowcreate",
                         "--tool", "pnr_innovus",
                         "--step", "cts",
                         "--sub-steps", "cts_init,cts_opt",
@@ -120,6 +122,141 @@ class TestFlowCreateCmd(unittest.TestCase):
             self.assertIn("cts_init", step_yaml)
             self.assertIn("cts_opt", step_yaml)
             self.assertFalse((tmp / "flow_overlay" / "hooks" / "pnr_innovus" / "cts").exists())
+
+    def test_flowcreate_can_run_without_branch_context(self):
+        from edp.cli import cli
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp = Path(tmpdir)
+            init_path = tmp / "flow" / "initialize" / "SAMSUNG" / "S4"
+            (init_path / "common_prj").mkdir(parents=True, exist_ok=True)
+            (init_path / "dongting").mkdir(parents=True, exist_ok=True)
+
+            with patch.object(self.flow_module, "_resolve_context", side_effect=KeyError("branch_path")):
+                user_input = "\n".join([
+                    "1",                            # foundry: SAMSUNG
+                    "1",                            # node: S4
+                    "1",                            # project: dongting
+                    "pnr_innovus",                  # tool
+                    "place",                        # step
+                    "global_place,detail_place",    # sub-steps
+                    "innovus -init $edp(script)",   # invoke
+                    "y",                            # with-hooks
+                    "",
+                ])
+                result = self.runner.invoke(
+                    cli,
+                    ["--edp-center", tmpdir, "flowcreate"],
+                    input=user_input,
+                )
+
+            self.assertEqual(result.exit_code, 0, result.output)
+            root = init_path / "dongting"
+            self.assertTrue((root / "cmds" / "pnr_innovus" / "step.yaml").exists())
+
+    def test_flowcreate_fallback_accepts_numeric_selection(self):
+        from edp.cli import cli
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp = Path(tmpdir)
+            init_path = tmp / "flow" / "initialize" / "SAMSUNG" / "S4"
+            (init_path / "common_prj").mkdir(parents=True, exist_ok=True)
+            (init_path / "dongting").mkdir(parents=True, exist_ok=True)
+
+            with patch.object(self.flow_module, "_resolve_context", side_effect=KeyError("branch_path")):
+                user_input = "\n".join([
+                    "1",                            # foundry: SAMSUNG
+                    "1",                            # node: S4
+                    "1",                            # project: dongting
+                    "pnr_innovus",
+                    "place",
+                    "global_place",
+                    "innovus -init $edp(script)",
+                    "n",
+                    "",
+                ])
+                result = self.runner.invoke(
+                    cli,
+                    ["--edp-center", tmpdir, "flowcreate"],
+                    input=user_input,
+                )
+
+            self.assertEqual(result.exit_code, 0, result.output)
+            root = init_path / "dongting"
+            self.assertTrue((root / "cmds" / "pnr_innovus" / "step.yaml").exists())
+
+    def test_flowcreate_fallback_can_confirm_new_foundry_node_project(self):
+        from edp.cli import cli
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp = Path(tmpdir)
+            # Keep one existing project list so selection prompt has baseline.
+            base_init = tmp / "flow" / "initialize" / "SAMSUNG" / "S4"
+            (base_init / "common_prj").mkdir(parents=True, exist_ok=True)
+            (base_init / "dongting").mkdir(parents=True, exist_ok=True)
+
+            with patch.object(self.flow_module, "_resolve_context", side_effect=KeyError("branch_path")):
+                user_input = "\n".join([
+                    "MY_FOUNDRY",                   # not number and not in list
+                    "y",                            # confirm new foundry
+                    "N3",                           # new node
+                    "y",                            # confirm new node
+                    "my_proj",                      # new project
+                    "y",                            # confirm new project
+                    "pnr_innovus",
+                    "place",
+                    "global_place",
+                    "innovus -init $edp(script)",
+                    "n",
+                    "",
+                ])
+                result = self.runner.invoke(
+                    cli,
+                    ["--edp-center", tmpdir, "flowcreate"],
+                    input=user_input,
+                )
+
+            self.assertEqual(result.exit_code, 0, result.output)
+            root = tmp / "flow" / "initialize" / "MY_FOUNDRY" / "N3" / "my_proj"
+            self.assertTrue((root / "cmds" / "pnr_innovus" / "step.yaml").exists())
+
+    def test_flowcreate_new_step_yaml_contains_invoke_tutor_header(self):
+        from edp.cli import cli
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp = Path(tmpdir)
+            init_path = tmp / "flow" / "initialize" / "SAMSUNG" / "S4"
+            (init_path / "common_prj").mkdir(parents=True, exist_ok=True)
+            (init_path / "dongting").mkdir(parents=True, exist_ok=True)
+
+            with patch.object(self.flow_module, "_resolve_context", side_effect=KeyError("branch_path")):
+                user_input = "\n".join([
+                    "1",                            # foundry
+                    "1",                            # node
+                    "1",                            # project
+                    "pnr_innovus",
+                    "place",
+                    "global_place",
+                    "innovus -init $edp(script)",
+                    "n",
+                    "",
+                ])
+                result = self.runner.invoke(
+                    cli,
+                    ["--edp-center", tmpdir, "flowcreate"],
+                    input=user_input,
+                )
+
+            self.assertEqual(result.exit_code, 0, result.output)
+            step_yaml = (init_path / "dongting" / "cmds" / "pnr_innovus" / "step.yaml").read_text(
+                encoding="utf-8"
+            )
+            self.assertIn("# invoke tutor (quick):", step_yaml)
+            self.assertIn("$edp(script)", step_yaml)
+            self.assertIn("tool(step,var) > tool(var)", step_yaml)
+            self.assertIn("base config < overlay config < user_config", step_yaml)
+            self.assertIn("-threads {cpu_num}", step_yaml)
+            self.assertIn("Expanded command shape (when vars exist)", step_yaml)
 
 
 if __name__ == "__main__":

@@ -11,6 +11,6 @@ from .status import status
 from .retry import retry
 from .graph_cmd import graph_cmd
 from .doctor import doctor
-from .flow_cmd import flow_cmd
+from .flow_cmd import flow_create_alias
 
-__all__ = ['init', 'run', 'status', 'retry', 'graph_cmd', 'doctor', 'flow_cmd']
+__all__ = ['init', 'run', 'status', 'retry', 'graph_cmd', 'doctor', 'flow_create_alias']

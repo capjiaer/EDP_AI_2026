@@ -12,14 +12,10 @@ import click
 import yaml
 
 from edp.context import _resolve_context
+from dirkit import ProjectFinder
 
 
-@click.group("flow")
-def flow_cmd():
-    """Flow authoring helpers (overlay step overrides, new steps append)."""
-
-
-@flow_cmd.command("create")
+@click.command("flowcreate")
 @click.option("--tool", "tool_name", default=None, help="Tool name")
 @click.option("--step", "step_name", default=None, help="Step name")
 @click.option("--sub-steps", "sub_steps", default=None,
@@ -29,7 +25,12 @@ def flow_cmd():
 @click.option("--with-hooks/--no-hooks", default=None,
               help="Create hook templates (default: yes)")
 @click.pass_context
-def flow_create(ctx, tool_name, step_name, sub_steps, invoke_cmd, with_hooks):
+def flow_create_alias(ctx, tool_name, step_name, sub_steps, invoke_cmd, with_hooks):
+    """Create minimal flow scaffold (single entrypoint)."""
+    _flow_create_impl(ctx, tool_name, step_name, sub_steps, invoke_cmd, with_hooks)
+
+
+def _flow_create_impl(ctx, tool_name, step_name, sub_steps, invoke_cmd, with_hooks):
     """Interactive tutor: create minimal flow scaffold."""
     edp_center = ctx.obj["edp_center"]
     if not edp_center:
@@ -37,7 +38,7 @@ def flow_create(ctx, tool_name, step_name, sub_steps, invoke_cmd, with_hooks):
             "edp_center is required. Use --edp-center or set EDP_CENTER."
         )
 
-    context = _resolve_context(ctx)
+    context = _resolve_or_prompt_context(ctx)
     flow_root = _pick_target_flow_root(context)
 
     click.echo("Flow Tutor (MVP): press Enter to accept defaults.")
@@ -101,9 +102,93 @@ def flow_create(ctx, tool_name, step_name, sub_steps, invoke_cmd, with_hooks):
 def _pick_target_flow_root(context: dict) -> Path:
     """Prefer overlay flow for authoring; fallback to base flow."""
     overlay = context["flow_overlay_path"]
-    if overlay and overlay.exists():
+    if overlay:
         return overlay
     return context["flow_base_path"]
+
+
+def _resolve_or_prompt_context(ctx) -> dict:
+    """Resolve context from cwd; fallback to interactive selection anywhere."""
+    edp_center = ctx.obj["edp_center"]
+    try:
+        return _resolve_context(ctx)
+    except Exception:
+        pass
+
+    init_path = Path(edp_center) / "flow" / "initialize"
+    finder = ProjectFinder(init_path)
+    projects = finder.list_projects()
+    if not projects:
+        raise click.ClickException(
+            f"No projects found under: {init_path}\n"
+            "Please check EDP_CENTER and initialize resources."
+        )
+
+    foundries = sorted({p["foundry"] for p in projects})
+    click.echo("Cannot detect branch context from cwd; switch to interactive project selection.")
+    foundry = _prompt_select_or_new("foundry", foundries)
+
+    nodes = sorted({p["node"] for p in projects if p["foundry"] == foundry})
+    node = _prompt_select_or_new("node", nodes)
+
+    project_names = sorted({
+        p["project"] for p in projects if p["foundry"] == foundry and p["node"] == node
+    })
+    project_name = _prompt_select_or_new("project", project_names)
+
+    flow_base = init_path / foundry / node / "common_prj"
+    flow_overlay = init_path / foundry / node / project_name
+    return {
+        "flow_base_path": flow_base,
+        "flow_overlay_path": flow_overlay,
+        "project_info": {
+            "foundry": foundry,
+            "node": node,
+            "project_name": project_name,
+        },
+    }
+
+
+def _prompt_select_or_new(label: str, options: List[str]) -> str:
+    """Prompt with numbered options; allow creating new value after confirmation."""
+    while True:
+        click.echo(f"Available {label}s:")
+        if options:
+            for idx, item in enumerate(options, 1):
+                click.echo(f"  [{idx}] {item}")
+        else:
+            click.echo("  (none)")
+
+        raw = click.prompt(
+            f"Select {label} (number or new_{label}_name)",
+            type=str,
+        ).strip()
+
+        if not raw:
+            click.echo(f"{label} cannot be empty.")
+            continue
+
+        if raw.isdigit():
+            index = int(raw)
+            if 1 <= index <= len(options):
+                return options[index - 1]
+            click.echo(f"Invalid selection index: {index}")
+            continue
+
+        existing_exact = next((item for item in options if item.lower() == raw.lower()), None)
+        if existing_exact:
+            click.echo(
+                f"'{raw}' is an existing {label}. "
+                f"Please use its index number [{options.index(existing_exact) + 1}] to avoid ambiguity."
+            )
+            continue
+
+        if click.confirm(
+            f"'{raw}' is not in existing {label} list. Create new {label}?",
+            default=False,
+            show_default=True,
+        ):
+            return raw
 
 
 def _parse_sub_steps(raw: str) -> List[str]:
@@ -175,7 +260,8 @@ def _write_flow_scaffold(flow_root: Path, tool_name: str, step_name: str,
 def _update_step_yaml(step_yaml: Path, tool_name: str, step_name: str,
                       sub_steps: List[str], invoke_cmd: str) -> None:
     data = {}
-    if step_yaml.exists():
+    existed = step_yaml.exists()
+    if existed:
         data = yaml.safe_load(step_yaml.read_text(encoding="utf-8")) or {}
     tool_block = data.setdefault(tool_name, {})
     supported = tool_block.setdefault("supported_steps", {})
@@ -189,10 +275,35 @@ def _update_step_yaml(step_yaml: Path, tool_name: str, step_name: str,
         "invoke": [invoke_cmd],
         "sub_steps": sub_steps,
     }
-    step_yaml.write_text(
-        yaml.safe_dump(data, sort_keys=False, allow_unicode=True),
-        encoding="utf-8",
-    )
+    body = yaml.safe_dump(data, sort_keys=False, allow_unicode=True)
+    if existed:
+        step_yaml.write_text(body, encoding="utf-8")
+        return
+
+    step_yaml.write_text(_invoke_tutor_header(tool_name) + "\n" + body, encoding="utf-8")
+
+
+def _invoke_tutor_header(tool_name: str) -> str:
+    return "\n".join([
+        "# invoke tutor (quick):",
+        "# - invoke is a list of command segments; EDP joins them with spaces.",
+        "# - $edp(var): framework vars (e.g. $edp(script), $edp(step), $edp(tool)).",
+        "# - {var}: optional config var; missing value drops the whole segment.",
+        "# - $var: required config var; always substituted (empty if missing).",
+        "# - Variable scope precedence: tool(step,var) > tool(var).",
+        "# - Config file override order: base config < overlay config < user_config.",
+        "#   (user_config can override both tool(var) and tool(step,var))",
+        "# Example:",
+        "#   invoke:",
+        f"#     - \"{tool_name} -init $edp(script)\"",
+        "#     - \"-threads {cpu_num}\"",
+        "#     - \"{nowin}\"",
+        "#     - \"-design $design_name\"",
+        "#     - \"{tee} $edp(step).log\"",
+        "#   Expanded command shape (when vars exist):",
+        f"#     {tool_name} -init <abs_script.tcl> -threads 8 -nowin -design top |& tee <step>.log",
+        "",
+    ])
 
 
 def _step_template(sub_step: str) -> str:

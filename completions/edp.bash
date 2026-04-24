@@ -23,7 +23,7 @@ _edp_completions() {
     for ((i=1; i<COMP_CWORD; i++)); do
         case "${COMP_WORDS[i]}" in
             -*) continue ;;
-            init|run|status|retry|graph|doctor)
+            init|run|status|retry|graph|doctor|flowcreate)
                 subcmd="${COMP_WORDS[i]}"
                 break
                 ;;
@@ -32,7 +32,7 @@ _edp_completions() {
 
     # No subcommand yet
     if [[ -z "$subcmd" ]]; then
-        COMPREPLY=($(compgen -W "init run status retry graph doctor -h --help" -- "$cur"))
+        COMPREPLY=($(compgen -W "init run status retry graph doctor flowcreate -h --help" -- "$cur"))
         return
     fi
 
@@ -89,6 +89,23 @@ _edp_completions() {
             ;;
         doctor)
             COMPREPLY=($(compgen -W "--strict --json -h --help" -- "$cur"))
+            ;;
+        flowcreate)
+            case "$prev" in
+                --tool)
+                    COMPREPLY=($(compgen -W "pnr_innovus pv_calibre sta_pt" -- "$cur"))
+                    return ;;
+                --step)
+                    COMPREPLY=($(compgen -W "$(_edp_read_cache STEPS)" -- "$cur"))
+                    return ;;
+                --sub-steps)
+                    COMPREPLY=($(compgen -W "$(_edp_read_cache STEPS)" -- "$cur"))
+                    return ;;
+                --invoke)
+                    COMPREPLY=($(compgen -W "innovus\ -init\ \$edp\(script\) calibre\ -drc\ \$edp\(script\) pt_shell\ -file\ \$edp\(script\)" -- "$cur"))
+                    return ;;
+            esac
+            COMPREPLY=($(compgen -W "--tool --step --sub-steps --invoke --with-hooks --no-hooks -h --help" -- "$cur"))
             ;;
     esac
 }

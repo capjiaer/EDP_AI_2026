@@ -34,10 +34,10 @@ edp init -blk pcie
 
 ```bash
 # 交互式创建（推荐）
-edp flow create
+edp flowcreate
 
 # 半自动：减少提问
-edp flow create --tool pnr_innovus --step place
+edp flowcreate --tool pnr_innovus --step place
 ```
 
 示例输入（交互）：

@@ -12,7 +12,7 @@ from pathlib import Path
 
 import click
 
-from edp.commands import init, run, status, retry, graph_cmd, doctor, flow_cmd
+from edp.commands import init, run, status, retry, graph_cmd, doctor, flow_create_alias
 
 
 @click.group(context_settings={
@@ -42,4 +42,4 @@ cli.add_command(status)
 cli.add_command(retry)
 cli.add_command(graph_cmd)
 cli.add_command(doctor)
-cli.add_command(flow_cmd)
+cli.add_command(flow_create_alias)

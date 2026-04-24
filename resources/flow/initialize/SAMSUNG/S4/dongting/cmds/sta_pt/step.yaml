@@ -1,7 +1,3 @@
-# step.yaml
-# dongting 项目级 pnr_innovus 步骤注册表
-# 继承 S4/common_prj，同名 key 覆盖
-#
 # invoke tutor (quick):
 # - invoke is a list of command segments; EDP joins them with spaces.
 # - $edp(var): framework vars (e.g. $edp(script), $edp(step), $edp(tool)).
@@ -12,13 +8,18 @@
 #   (user_config can override both tool(var) and tool(step,var))
 # Example:
 #   invoke:
-#     - "innovus -init $edp(script)"
+#     - "sta_pt -init $edp(script)"
 #     - "-threads {cpu_num}"
 #     - "{nowin}"
 #     - "-design $design_name"
 #     - "{tee} $edp(step).log"
 #   Expanded command shape (when vars exist):
-#     innovus -init <abs_script.tcl> -threads 8 -nowin -design top |& tee <step>.log
+#     sta_pt -init <abs_script.tcl> -threads 8 -nowin -design top |& tee <step>.log
 
-pnr_innovus:
-  supported_steps: {}
+sta_pt:
+  supported_steps:
+    runpt:
+      invoke:
+      - sta_pt -init $edp(script)
+      sub_steps:
+      - runpt

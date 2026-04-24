@@ -1,3 +1,20 @@
+# invoke tutor (quick):
+# - invoke is a list of command segments; EDP joins them with spaces.
+# - $edp(var): framework vars (e.g. $edp(script), $edp(step), $edp(tool)).
+# - {var}: optional config var; missing value drops the whole segment.
+# - $var: required config var; always substituted (empty if missing).
+# - Variable scope precedence: tool(step,var) > tool(var).
+# - Config file override order: base config < overlay config < user_config.
+#   (user_config can override both tool(var) and tool(step,var))
+# Example:
+#   invoke:
+#     - "calibre -drc -hier -turbo {cpu_num}"
+#     - "{hyper}"
+#     - "-rule $rule_file"
+#     - "{tee} $edp(step).log"
+#   Expanded command shape (when vars exist):
+#     calibre -drc -hier -turbo 8 -hyper -rule drc.rule |& tee <step>.log
+
 pv_calibre:
   supported_steps:
     perc:
