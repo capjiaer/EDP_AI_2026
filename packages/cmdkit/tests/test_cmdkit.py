@@ -708,5 +708,104 @@ class TestPosixPath(TestScriptBuilderBase):
                 self.assertNotIn('\\', line)
 
 
+# ── 端到端集成测试：YAML 类型编码 → config.tcl 正确性 ──
+
+class TestConfigTclTypeEncoding(TestScriptBuilderBase):
+    """端到端验证：config.yaml 中的各 Python 类型最终在 config.tcl 中正确编码。
+
+    这是回归测试，防止 YAML → Tcl 路径上出现静默类型错误。
+    """
+
+    def _write_config_and_get_content(self, yaml_content: str) -> str:
+        """写入 config.yaml，生成脚本，返回 config.tcl 内容。"""
+        _write(
+            self.flow_base / "cmds" / "pnr_innovus" / "config.yaml",
+            yaml_content,
+        )
+        builder = self._builder()
+        builder.write_step_script("pnr_innovus", "place")
+        config_path = (
+            self.workdir / "cmds" / "pnr_innovus" / "place" / "config.tcl"
+        )
+        return config_path.read_text(encoding="utf-8")
+
+    def test_bool_true_becomes_1(self):
+        """YAML true → Tcl 1，而非字符串 True"""
+        content = self._write_config_and_get_content(
+            "pnr_innovus:\n  lsf:\n    lsf_mode: true\n"
+        )
+        self.assertIn("set pnr_innovus(lsf,lsf_mode) {1}", content)
+        self.assertNotIn("True", content)
+
+    def test_bool_false_becomes_0(self):
+        """YAML false → Tcl 0"""
+        content = self._write_config_and_get_content(
+            "pnr_innovus:\n  lsf:\n    lsf_mode: false\n"
+        )
+        self.assertIn("set pnr_innovus(lsf,lsf_mode) {0}", content)
+        self.assertNotIn("False", content)
+
+    def test_int_preserved(self):
+        """整数值正确写出"""
+        content = self._write_config_and_get_content(
+            "pnr_innovus:\n  lsf:\n    cpu_num: 16\n"
+        )
+        self.assertIn("set pnr_innovus(lsf,cpu_num) {16}", content)
+
+    def test_list_is_tcl_list_not_literal_string(self):
+        """list 值编码为 [list ...] 命令，而非花括号包裹的字面字符串"""
+        content = self._write_config_and_get_content(
+            "pnr_innovus:\n  extra_args:\n    - -verbose\n    - -turbo\n"
+        )
+        # [list ...] 必须不在 {...} 内，否则 Tcl 会把它当字符串
+        self.assertIn("set pnr_innovus(extra_args) [list", content)
+        self.assertNotIn("set pnr_innovus(extra_args) {[list", content)
+
+    def test_string_with_spaces_brace_quoted(self):
+        """含空格的字符串用 {...} 保护"""
+        content = self._write_config_and_get_content(
+            "pnr_innovus:\n  log_msg: hello world\n"
+        )
+        self.assertIn("set pnr_innovus(log_msg) {hello world}", content)
+
+    def test_overlay_bool_overrides_base(self):
+        """overlay 中的 bool 值正确覆盖 base，override 标注也正确"""
+        overlay = self.test_dir / "overlay"
+        _write(
+            overlay / "cmds" / "pnr_innovus" / "config.yaml",
+            "pnr_innovus:\n  lsf:\n    lsf_mode: true\n",
+        )
+        _write(
+            self.flow_base / "cmds" / "pnr_innovus" / "config.yaml",
+            "pnr_innovus:\n  lsf:\n    lsf_mode: false\n",
+        )
+        builder = self._builder(overlay=overlay)
+        builder.write_step_script("pnr_innovus", "place")
+        content = (
+            self.workdir / "cmds" / "pnr_innovus" / "place" / "config.tcl"
+        ).read_text(encoding="utf-8")
+        # overlay 写入 1，且标注 override
+        self.assertIn("set pnr_innovus(lsf,lsf_mode) {1}", content)
+        self.assertIn("[override]", content)
+
+    def test_var_ref_expanded_across_files(self):
+        """overlay 中引用 base 定义的 $var，写出时已展开"""
+        overlay = self.test_dir / "overlay"
+        _write(
+            self.flow_base / "cmds" / "pnr_innovus" / "config.yaml",
+            "base_path: /work/proj\n",
+        )
+        _write(
+            overlay / "cmds" / "pnr_innovus" / "config.yaml",
+            "report_dir: $base_path/reports\n",
+        )
+        builder = self._builder(overlay=overlay)
+        builder.write_step_script("pnr_innovus", "place")
+        content = (
+            self.workdir / "cmds" / "pnr_innovus" / "place" / "config.tcl"
+        ).read_text(encoding="utf-8")
+        self.assertIn("set report_dir {/work/proj/reports}", content)
+
+
 if __name__ == '__main__':
     unittest.main(verbosity=2)

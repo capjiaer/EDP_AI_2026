@@ -251,6 +251,80 @@ class TestFilesToTcl(unittest.TestCase):
             content = out.read_text(encoding="utf-8")
             self.assertIn("set pv_calibre(lsf,cpu_num) {4}", content)
 
+    # ---- 类型编码正确性 ----
+
+    def test_bool_true_encoded_as_1(self):
+        """YAML true 应编码为 Tcl 1，而非字符串 True"""
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            src = tmp_path / "c.yaml"
+            out = tmp_path / "c.tcl"
+            src.write_text("lsf_mode: true\n", encoding="utf-8")
+            files_to_tcl(src, output_file=out)
+            content = out.read_text(encoding="utf-8")
+            self.assertIn("set lsf_mode {1}", content)
+            self.assertNotIn("True", content)
+
+    def test_bool_false_encoded_as_0(self):
+        """YAML false 应编码为 Tcl 0"""
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            src = tmp_path / "c.yaml"
+            out = tmp_path / "c.tcl"
+            src.write_text("debug: false\n", encoding="utf-8")
+            files_to_tcl(src, output_file=out)
+            content = out.read_text(encoding="utf-8")
+            self.assertIn("set debug {0}", content)
+            self.assertNotIn("False", content)
+
+    def test_list_encoded_as_tcl_list_command(self):
+        """YAML list 应编码为 [list ...] 命令，而非字面字符串"""
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            src = tmp_path / "c.yaml"
+            out = tmp_path / "c.tcl"
+            src.write_text("extra_args:\n  - -verbose\n  - -turbo\n", encoding="utf-8")
+            files_to_tcl(src, output_file=out)
+            content = out.read_text(encoding="utf-8")
+            # 必须是 set ... [list ...] 而非 set ... {[list ...]}
+            self.assertIn("set extra_args [list", content)
+            self.assertNotIn("set extra_args {[list", content)
+
+    def test_string_with_spaces_brace_quoted(self):
+        """含空格的字符串用花括号保护"""
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            src = tmp_path / "c.yaml"
+            out = tmp_path / "c.tcl"
+            src.write_text('msg: "hello world"\n', encoding="utf-8")
+            files_to_tcl(src, output_file=out)
+            content = out.read_text(encoding="utf-8")
+            self.assertIn("set msg {hello world}", content)
+
+    def test_var_ref_expanded_in_strings(self):
+        """字符串中的 $var 引用在写出时展开"""
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            base = tmp_path / "base.yaml"
+            overlay = tmp_path / "overlay.yaml"
+            out = tmp_path / "out.tcl"
+            base.write_text("base_path: /work/proj\n", encoding="utf-8")
+            overlay.write_text("report_dir: $base_path/reports\n", encoding="utf-8")
+            files_to_tcl(base, overlay, output_file=out)
+            content = out.read_text(encoding="utf-8")
+            self.assertIn("set report_dir {/work/proj/reports}", content)
+
+    def test_int_not_brace_wrapped(self):
+        """整数值直接写出，无需花括号（Tcl 可正确识别）"""
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            src = tmp_path / "c.yaml"
+            out = tmp_path / "c.tcl"
+            src.write_text("cpu_num: 8\n", encoding="utf-8")
+            files_to_tcl(src, output_file=out)
+            content = out.read_text(encoding="utf-8")
+            self.assertIn("set cpu_num {8}", content)
+
     def test_overlay_marks_override_and_new(self):
         """后层文件覆盖前层时标注 [override]，新增变量标注 [new]"""
         with tempfile.TemporaryDirectory() as tmp:
