@@ -78,6 +78,8 @@ from .core.value_converter import (
     detect_tcl_list,
 )
 
+from .core.tcl_file_emit import files_to_tcl
+
 from .core.type_conversion import (
     get_var_type,
     convert_list_element,
@@ -150,6 +152,9 @@ __all__ = [
     'value_format_py2tcl',
     'value_format_tcl2py',
     'detect_tcl_list',
+
+    # 文件操作函数
+    'files_to_tcl',
 
     # 类型转换函数
     'get_var_type',

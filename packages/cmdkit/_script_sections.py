@@ -5,7 +5,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
-from configkit import TclBridge
+from configkit import files_to_tcl
 
 from ._script_utils import _posix
 
@@ -46,7 +46,7 @@ def generate_config_tcl(builder, tool_name: str, step_name: str) -> Path:
         return output_path
 
     edp_vars = builder._build_edp_vars(tool_name, step_name)
-    result = TclBridge().files_to_tcl(*config_files, output_file=output_path, edp_vars=edp_vars)
+    result = files_to_tcl(*config_files, output_file=output_path, edp_vars=edp_vars)
 
     content = result.read_text(encoding="utf-8")
     header_lines = ["# Config loading order (later overrides earlier):"]

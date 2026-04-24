@@ -41,11 +41,11 @@ def _flatten_dict(data: Dict[str, Any],
     return result
 
 
-def files_to_tcl(interp: Tcl,
-                 *input_files: Union[str, Path],
+def files_to_tcl(*input_files: Union[str, Path],
                  output_file: Union[str, Path],
                  edp_vars: Optional[Dict[str, str]] = None) -> Path:
     """将多个 YAML/Tcl 配置文件按覆盖链合成为单个 Tcl 文件。"""
+    interp = Tcl()
     output_path = Path(output_file)
     output_path.parent.mkdir(parents=True, exist_ok=True)
 

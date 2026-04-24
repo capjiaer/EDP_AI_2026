@@ -25,7 +25,6 @@ from tkinter import Tcl
 
 from ..types import ConfigDict, ConversionMode, ValueType, TclInterpreter
 from ..exceptions import TclError, ConversionError, FileError
-from .tcl_file_emit import files_to_tcl as _files_to_tcl
 from .value_converter import ValueConverter
 
 
@@ -245,18 +244,6 @@ class TclBridge:
                 else:
                     # 写入简单变量
                     self._write_variable_to_file(target_interp, f, var_name)
-
-    def files_to_tcl(self,
-                     *input_files: Union[str, Path],
-                     output_file: Union[str, Path],
-                     edp_vars: Optional[Dict[str, str]] = None) -> Path:
-        """将多个 YAML/Tcl 配置文件合成为单个 Tcl 文件。"""
-        return _files_to_tcl(
-            self.interp,
-            *input_files,
-            output_file=output_file,
-            edp_vars=edp_vars,
-        )
 
     # 私有方法
 
@@ -535,14 +522,3 @@ class TclBridge:
         for element in array_elements:
             value = interp.eval(f"set {var_name}({element})")
             file.write(f"set {var_name}({element}) {{{value}}}\n")
-
-
-# 向后兼容函数入口（保留原导入路径）
-from .tcl_bridge_compat import (
-    dict2tclinterp,
-    tclinterp2dict,
-    tclinterp2tclfile,
-    tclfiles2tclinterp,
-    expand_variable_references,
-    files2tcl,
-)
