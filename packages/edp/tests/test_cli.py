@@ -23,7 +23,7 @@ class TestCLIHelp(unittest.TestCase):
         from edp.cli import cli
         result = self.runner.invoke(cli, ["--help"])
         self.assertEqual(result.exit_code, 0)
-        for cmd in ["init", "run", "status", "retry", "graph", "doctor", "flowcreate"]:
+        for cmd in ["init", "run", "status", "retry", "graph", "doctor", "flowcreate", "tutor"]:
             self.assertIn(cmd, result.output)
 
     def test_init_help(self):
@@ -78,6 +78,14 @@ class TestCLIHelp(unittest.TestCase):
         self.assertEqual(result.exit_code, 0)
         self.assertIn("--tool", result.output)
 
+    def test_tutor_help(self):
+        from edp.cli import cli
+        result = self.runner.invoke(cli, ["tutor", "--help"])
+        self.assertEqual(result.exit_code, 0)
+        self.assertIn("quickstart", result.output)
+        self.assertIn("model", result.output)
+        self.assertIn("diagnose", result.output)
+
 
 class TestMissingEdpCenter(unittest.TestCase):
     def setUp(self):
@@ -92,6 +100,12 @@ class TestMissingEdpCenter(unittest.TestCase):
     def test_run_requires_edp_center(self):
         from edp.cli import cli
         result = self.runner.invoke(cli, ["run"])
+        self.assertNotEqual(result.exit_code, 0)
+        self.assertIn("edp_center", result.output.lower())
+
+    def test_tutor_diagnose_requires_edp_center(self):
+        from edp.cli import cli
+        result = self.runner.invoke(cli, ["tutor", "diagnose"])
         self.assertNotEqual(result.exit_code, 0)
         self.assertIn("edp_center", result.output.lower())
 

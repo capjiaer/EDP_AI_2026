@@ -21,7 +21,7 @@ if ("$_edp_projects" == "") set _edp_projects = ( )
 if ("$_edp_nodes" == "") set _edp_nodes = ( )
 if ("$_edp_steps" == "") set _edp_steps = ( )
 
-set _edp_subcmds = (init run status retry graph doctor flowcreate -h --help)
+set _edp_subcmds = (init run status retry graph doctor flowcreate tutor -h --help)
 set _edp_init_opts = (-prj --project -w --work-path -n --node -ver --version -blk --block -br --branch --link --no-link -h --help)
 set _edp_run_opts = (-fr --from -to --to -skip --skip -dr --dry-run --force -debug --debug -info --info -h --help)
 set _edp_status_opts = (-h --help)
@@ -66,4 +66,7 @@ complete edp 'N/--tool/(pnr_innovus pv_calibre sta_pt)/'
 complete edp "N/--step/($_edp_steps)/"
 complete edp "N/--sub-steps/($_edp_steps)/"
 complete edp 'N/--invoke/(innovus\ -init\ \$edp\(script\) calibre\ -drc\ \$edp\(script\) pt_shell\ -file\ \$edp\(script\))/'
+
+# tutor subcommands
+complete edp 'n/tutor/(quickstart model diagnose -h --help)/'
 

@@ -23,7 +23,7 @@ _edp_completions() {
     for ((i=1; i<COMP_CWORD; i++)); do
         case "${COMP_WORDS[i]}" in
             -*) continue ;;
-            init|run|status|retry|graph|doctor|flowcreate)
+            init|run|status|retry|graph|doctor|flowcreate|tutor)
                 subcmd="${COMP_WORDS[i]}"
                 break
                 ;;
@@ -32,7 +32,7 @@ _edp_completions() {
 
     # No subcommand yet
     if [[ -z "$subcmd" ]]; then
-        COMPREPLY=($(compgen -W "init run status retry graph doctor flowcreate -h --help" -- "$cur"))
+        COMPREPLY=($(compgen -W "init run status retry graph doctor flowcreate tutor -h --help" -- "$cur"))
         return
     fi
 
@@ -106,6 +106,14 @@ _edp_completions() {
                     return ;;
             esac
             COMPREPLY=($(compgen -W "--tool --step --sub-steps --invoke -h --help" -- "$cur"))
+            ;;
+        tutor)
+            case "$prev" in
+                tutor)
+                    COMPREPLY=($(compgen -W "quickstart model diagnose -h --help" -- "$cur"))
+                    return ;;
+            esac
+            COMPREPLY=($(compgen -W "quickstart model diagnose -h --help" -- "$cur"))
             ;;
     esac
 }
