@@ -289,6 +289,44 @@ class TestFlowCreateCmd(unittest.TestCase):
             self.assertIn("provided steps (1): place", result.output)
             self.assertIn("activated steps (2): place, route", result.output)
 
+    def test_flowcreate_merges_base_supported_steps_for_visibility(self):
+        from edp.cli import cli
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp = Path(tmpdir)
+            ctx = self._mock_context(tmp)
+
+            # Keep selected tool step.yaml only in base, overlay has none.
+            base_tool_dir = ctx["flow_base_path"] / "cmds" / "pnr_innovus"
+            base_tool_dir.mkdir(parents=True, exist_ok=True)
+            (base_tool_dir / "step.yaml").write_text(
+                (
+                    "pnr_innovus:\n"
+                    "  supported_steps:\n"
+                    "    place:\n"
+                    "      invoke: [\"innovus -init $edp(script)\"]\n"
+                    "      sub_steps: [global_place]\n"
+                ),
+                encoding="utf-8",
+            )
+            ctx["tool_selection"] = {"place": "pnr_innovus"}
+
+            with patch.object(self.flow_module, "_resolve_context") as mock_ctx:
+                mock_ctx.return_value = ctx
+                result = self.runner.invoke(
+                    cli,
+                    [
+                        "--edp-center", tmpdir, "flowcreate",
+                        "--tool", "pnr_innovus",
+                        "--step", "route",
+                        "--sub-steps", "route",
+                        "--invoke", "innovus -init $edp(script)",
+                    ],
+                )
+
+            self.assertEqual(result.exit_code, 0, result.output)
+            self.assertIn("provided steps (1): place", result.output)
+
     def test_flowcreate_collects_multi_invoke_segments_interactively(self):
         from edp.cli import cli
 
@@ -372,6 +410,36 @@ class TestFlowCreateCmd(unittest.TestCase):
             self.assertIn("Invoke segment [calibre -drc -hier -turbo {cpu_num}]", result.output)
             step_yaml = (tmp / "flow_overlay" / "cmds" / "pv_calibre" / "step.yaml").read_text(encoding="utf-8")
             self.assertIn("- calibre -drc -hier -turbo {cpu_num}", step_yaml)
+
+    def test_flowcreate_suggests_sta_pt_default_invoke(self):
+        from edp.cli import cli
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp = Path(tmpdir)
+            with patch.object(self.flow_module, "_resolve_context") as mock_ctx:
+                mock_ctx.return_value = self._mock_context(tmp)
+                user_input = "\n".join([
+                    "setup",  # step
+                    "setup",  # sub-steps
+                    "",       # accept suggested first invoke segment
+                    "",       # finish invoke segments
+                    "",       # trailing newline
+                ])
+                result = self.runner.invoke(
+                    cli,
+                    [
+                        "--edp-center", tmpdir, "flowcreate",
+                        "--tool", "sta_pt",
+                    ],
+                    input=user_input,
+                )
+
+            self.assertEqual(result.exit_code, 0, result.output)
+            self.assertIn("Invoke segment [pt_shell -file $edp(script)]", result.output)
+            step_yaml = (tmp / "flow_overlay" / "cmds" / "sta_pt" / "step.yaml").read_text(
+                encoding="utf-8"
+            )
+            self.assertIn("- pt_shell -file $edp(script)", step_yaml)
 
 
 if __name__ == "__main__":

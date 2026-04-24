@@ -78,7 +78,7 @@ from .core.value_converter import (
     detect_tcl_list,
 )
 
-from .core.tcl_bridge import (
+from .core.tcl_bridge_compat import (
     dict2tclinterp,
     tclinterp2dict,
     tclinterp2tclfile,

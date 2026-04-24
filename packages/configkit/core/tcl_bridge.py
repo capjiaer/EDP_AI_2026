@@ -18,14 +18,14 @@ ConfigKit Tcl 桥接器模块
 4. 面向对象设计
 """
 
-import os
 import re
 from pathlib import Path
-from typing import Dict, Any, Optional, Union, List, Tuple
+from typing import Dict, Any, Optional, Union, List
 from tkinter import Tcl
 
 from ..types import ConfigDict, ConversionMode, ValueType, TclInterpreter
 from ..exceptions import TclError, ConversionError, FileError
+from .tcl_file_emit import files_to_tcl as _files_to_tcl
 from .value_converter import ValueConverter
 
 
@@ -245,6 +245,18 @@ class TclBridge:
                 else:
                     # 写入简单变量
                     self._write_variable_to_file(target_interp, f, var_name)
+
+    def files_to_tcl(self,
+                     *input_files: Union[str, Path],
+                     output_file: Union[str, Path],
+                     edp_vars: Optional[Dict[str, str]] = None) -> Path:
+        """将多个 YAML/Tcl 配置文件合成为单个 Tcl 文件。"""
+        return _files_to_tcl(
+            self.interp,
+            *input_files,
+            output_file=output_file,
+            edp_vars=edp_vars,
+        )
 
     # 私有方法
 
@@ -525,246 +537,12 @@ class TclBridge:
             file.write(f"set {var_name}({element}) {{{value}}}\n")
 
 
-# 向后兼容的函数接口
-def dict2tclinterp(data: Dict[str, Any], interp: Optional[Tcl] = None) -> Tcl:
-    """Python 字典转 Tcl 解释器（向后兼容函数）
-
-    Args:
-        data: Python 字典
-        interp: 可选的 Tcl 解释器
-
-    Returns:
-        Tcl 解释器
-    """
-    bridge = TclBridge(interp=interp)
-    return bridge.dict_to_interp(data)
-
-
-def tclinterp2dict(interp: Tcl,
-                   mode: ConversionMode = ConversionMode.AUTO) -> Dict[str, Any]:
-    """Tcl 解释器转 Python 字典（向后兼容函数）
-
-    Args:
-        interp: Tcl 解释器
-        mode: 转换模式
-
-    Returns:
-        Python 字典
-    """
-    bridge = TclBridge(interp=interp)
-    return bridge.interp_to_dict(mode=mode)
-
-
-def tclinterp2tclfile(interp: Tcl, output_file: Union[str, Path]) -> None:
-    """Tcl 解释器转 Tcl 文件（向后兼容函数）
-
-    Args:
-        interp: Tcl 解释器
-        output_file: 输出文件路径
-    """
-    bridge = TclBridge(interp=interp)
-    bridge.save_tcl_file(output_file=output_file)
-
-
-def tclfiles2tclinterp(*tcl_files: Union[str, Path]) -> Tcl:
-    """Tcl 文件转 Tcl 解释器（向后兼容函数）
-
-    Args:
-        *tcl_files: 一个或多个 Tcl 文件路径
-
-    Returns:
-        Tcl 解释器
-    """
-    bridge = TclBridge()
-    result_interp = Tcl()
-
-    for tcl_file in tcl_files:
-        try:
-            result_interp.eval(f"source {{{tcl_file}}}")
-        except Exception as e:
-            raise TclError(
-                f"Failed to load Tcl file: {str(e)}",
-                tcl_command=f"source {{{tcl_file}}}",
-                context={'file_path': str(tcl_file)}
-            )
-
-    return result_interp
-
-
-def expand_variable_references(interp: Tcl) -> None:
-    """展开 Tcl 解释器中的变量引用（向后兼容函数）
-
-    Args:
-        interp: Tcl 解释器
-    """
-    bridge = TclBridge(interp=interp)
-    bridge.expand_variables()
-
-
-def _flatten_dict(data: Dict[str, Any],
-                  parent_keys: List[str] = None) -> List[Tuple[str, str]]:
-    """将嵌套字典扁平化为 (tcl_key, value) 列表。
-
-    {'pv_calibre': {'lsf': {'cpu_num': 4}}}
-    → [('pv_calibre(lsf,cpu_num)', '4')]
-    """
-    parent_keys = parent_keys or []
-    result = []
-
-    for key, value in data.items():
-        if isinstance(value, dict):
-            result.extend(_flatten_dict(value, parent_keys + [key]))
-        elif isinstance(value, list):
-            tcl_elements = ' '.join(str(v) for v in value)
-            tcl_key = ','.join(parent_keys + [key]) if parent_keys else key
-            if parent_keys:
-                tcl_key = f"{parent_keys[0]}({','.join(parent_keys[1:] + [key])})"
-            else:
-                tcl_key = key
-            result.append((tcl_key, f"[list {tcl_elements}]"))
-        else:
-            if parent_keys:
-                tcl_key = f"{parent_keys[0]}({','.join(parent_keys[1:] + [key])})"
-            else:
-                tcl_key = key
-            result.append((tcl_key, str(value) if value is not None else ""))
-
-    return result
-
-
-def files2tcl(*input_files: Union[str, Path],
-              output_file: Union[str, Path],
-              edp_vars: Optional[Dict[str, str]] = None) -> Path:
-    """将多个配置文件转为单个 Tcl 文件，分段写入并标注来源。
-
-    每个输入文件的内容按顺序写入，用 ``# --- source from: xxx ---`` 分隔。
-    后面文件覆盖前面文件的变量，天然可追溯。
-
-    Args:
-        *input_files: YAML 或 Tcl 文件路径
-        output_file: 输出 Tcl 文件路径
-        edp_vars: 框架基础变量（如 foundry, node, project 等），
-                  写在最前面作为 ``set edp(key) {value}``
-
-    Returns:
-        输出文件的 Path 对象
-
-    Example::
-
-        files2tcl('base.yaml', 'overlay.yaml', 'user.yaml',
-                  output_file='config.tcl',
-                  edp_vars={'foundry': 'SMIC', 'node': 'S4'})
-
-        # 输出:
-        # --- framework variables ---
-        set edp(foundry) {SMIC}
-        set edp(node) {S4}
-
-        # --- source from: base.yaml ---
-        set pv_calibre(lsf,cpu_num) {4}
-        ...
-    """
-    import yaml
-    import re
-
-    output_path = Path(output_file)
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-
-    # 用 Tcl 解释器跟踪变量状态，替代正则
-    interp = Tcl()
-
-    # 先设置 edp vars
-    if edp_vars:
-        for k, v in edp_vars.items():
-            interp.eval(f"set edp({k}) {{{v}}}")
-
-    def _get_interp_var(var_name: str) -> str:
-        """安全地从 interp 读取变量值"""
-        try:
-            return interp.eval(f"set {var_name}")
-        except Exception:
-            return ""
-
-    def _expand_refs(value: str) -> str:
-        """将值中的 $var(key) 和 $var 引用替换为 interp 中的实际值"""
-        def _replacer_array(m):
-            key = m.group(1)
-            val = _get_interp_var(key)
-            return val if val else m.group(0)
-
-        def _replacer_simple(m):
-            key = m.group(1)
-            val = _get_interp_var(key)
-            return val if val else m.group(0)
-
-        result = re.sub(r'\$(\w+\([^)]+\))', _replacer_array, value)
-        result = re.sub(r'\$(\w+)', _replacer_simple, result)
-        return result
-
-    def _var_exists(tcl_key: str) -> bool:
-        """检查 interp 中是否已存在某变量"""
-        try:
-            return interp.eval(f"info exists {tcl_key}") == "1"
-        except Exception:
-            return False
-
-    def _get_var(tcl_key: str) -> str:
-        """安全读取 interp 变量值"""
-        try:
-            return interp.eval(f"set {tcl_key}")
-        except Exception:
-            return ""
-
-    with open(output_path, 'w', encoding='utf-8') as out:
-        out.write("# Generated by ConfigKit\n")
-        out.write(f"# Input files: {len(input_files)}\n")
-
-        # 框架基础变量（edp 命名空间）
-        if edp_vars:
-            out.write("\n# --- framework variables ---\n")
-            for key, value in edp_vars.items():
-                out.write(f"set edp({key}) {{{value}}}\n")
-
-        out.write("\n")
-
-        for file_idx, input_file in enumerate(input_files):
-            file_path = Path(input_file)
-            if not file_path.exists():
-                continue
-
-            out.write(f"# --- source from: {file_path.resolve()} ---\n")
-
-            ext = file_path.suffix.lower()
-
-            if ext in ('.yaml', '.yml'):
-                with open(file_path, 'r', encoding='utf-8') as f:
-                    data = yaml.safe_load(f) or {}
-                entries = _flatten_dict(data)
-                for tcl_key, value in entries:
-                    expanded = _expand_refs(value)
-
-                    # 标记 override/new（仅后续文件，base 不标）
-                    mark = ""
-                    if file_idx > 0:
-                        if _var_exists(tcl_key):
-                            old_val = _get_var(tcl_key)
-                            if old_val != expanded:
-                                mark = f"   # [override] was {{{old_val}}}"
-                        else:
-                            mark = "   # [new]"
-
-                    out.write(f"set {tcl_key} {{{expanded}}}{mark}\n")
-                    # 同步到 interp，让后面的文件能用
-                    interp.eval(f"set {tcl_key} {{{expanded}}}")
-                out.write("\n")
-
-            elif ext in ('.tcl', '.tk'):
-                content = file_path.read_text(encoding='utf-8')
-                # 扔给 interp 执行，变量自然生效
-                interp.eval(f"source {{{file_path.resolve()}}}")
-                out.write(content)
-                if not content.endswith('\n'):
-                    out.write('\n')
-                out.write('\n')
-
-    return output_path
+# 向后兼容函数入口（保留原导入路径）
+from .tcl_bridge_compat import (
+    dict2tclinterp,
+    tclinterp2dict,
+    tclinterp2tclfile,
+    tclfiles2tclinterp,
+    expand_variable_references,
+    files2tcl,
+)
