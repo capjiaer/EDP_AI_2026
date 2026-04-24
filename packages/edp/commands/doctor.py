@@ -5,12 +5,14 @@
 edp.commands.doctor - Environment and workspace diagnostics
 """
 
+import importlib
 import json
 import os
 import shutil
 from pathlib import Path
 
 import click
+import yaml
 
 from flowkit import StateStore
 from edp.context import _resolve_context, _find_graph_configs, _load_graph_config_choice
@@ -55,6 +57,27 @@ def doctor(ctx, strict, json_mode):
     """Check environment, context and graph/state consistency."""
     results = []
 
+    # ── Python 依赖 ──
+    for pkg in ["yaml", "configkit", "flowkit", "cmdkit", "dirkit"]:
+        try:
+            importlib.import_module(pkg)
+            _record(results, "OK", f"pkg_{pkg}", f"Python package '{pkg}' importable")
+        except ImportError:
+            _record(results, "ERR", f"pkg_{pkg}", f"Python package '{pkg}' not found")
+
+    # ── Tcl 运行时 ──
+    try:
+        from tkinter import Tcl as _Tcl
+        _Tcl()
+        _record(results, "OK", "tcl_runtime", "Tcl runtime available (tkinter.Tcl)")
+    except Exception as exc:
+        _record(
+            results, "ERR", "tcl_runtime",
+            f"Tcl runtime not available: {exc}. "
+            "Install tkinter (e.g. python3-tk) — configkit requires it.",
+        )
+
+    # ── edp_center ──
     edp_center = ctx.obj.get("edp_center")
     if not edp_center:
         _record(
@@ -95,6 +118,26 @@ def doctor(ctx, strict, json_mode):
         )
     else:
         _record(results, "OK", "legacy_common_packages", "legacy common_packages directory not found")
+
+    # ── flow/common_packages 结构 ──
+    common_packages = edp_center / "flow" / "common_packages"
+    if not common_packages.exists():
+        _record(
+            results, "ERR", "common_packages",
+            f"Missing flow/common_packages: {common_packages}. "
+            "Script generation and debug mode will fail.",
+        )
+    else:
+        _record(results, "OK", "common_packages", f"flow/common_packages: {common_packages}")
+        edp_debug_tcl = common_packages / "tcl_packages" / "default" / "edp_debug.tcl"
+        if edp_debug_tcl.exists():
+            _record(results, "OK", "edp_debug_tcl", "edp_debug.tcl found")
+        else:
+            _record(
+                results, "WARN", "edp_debug_tcl",
+                f"edp_debug.tcl not found at {edp_debug_tcl}. "
+                "Debug mode (edp debug) will be unavailable.",
+            )
 
     shell_hint = os.environ.get("SHELL", "")
     if shell_hint:
@@ -159,6 +202,11 @@ def doctor(ctx, strict, json_mode):
                     "multiple graph configs found but .graph_config is not selected",
                 )
 
+        # ── flow 结构有效性 ──
+        _check_flow_structure(results, flow_base, "base")
+        if flow_overlay:
+            _check_flow_structure(results, flow_overlay, "overlay")
+
         state_store = StateStore(context["branch_path"] / "state.yaml")
         if state_store.exists():
             _record(results, "OK", "state_file", "state.yaml exists")
@@ -178,6 +226,38 @@ def doctor(ctx, strict, json_mode):
             _record(results, "WARN", "state_file", "state.yaml not found (no execution history yet)")
 
     return _finish(results, strict, json_mode)
+
+
+def _check_flow_structure(results, flow_path: Path, label: str) -> None:
+    """检查 flow 目录下的 step.yaml 是否存在且可解析。"""
+    cmds_dir = flow_path / "cmds"
+    if not cmds_dir.exists():
+        _record(results, "WARN", f"flow_{label}_cmds",
+                f"No cmds/ directory in {label} flow: {flow_path}")
+        return
+
+    step_yamls = sorted(cmds_dir.glob("*/step.yaml"))
+    if not step_yamls:
+        _record(results, "WARN", f"flow_{label}_step_yaml",
+                f"No tool step.yaml found under {cmds_dir}")
+        return
+
+    _record(results, "OK", f"flow_{label}_step_yaml",
+            f"{label} flow: {len(step_yamls)} tool(s) with step.yaml")
+
+    parse_errors = []
+    for step_yaml in step_yamls:
+        try:
+            yaml.safe_load(step_yaml.read_text(encoding="utf-8"))
+        except yaml.YAMLError as exc:
+            parse_errors.append(f"{step_yaml.parent.name}/step.yaml: {exc}")
+
+    if parse_errors:
+        for err in parse_errors:
+            _record(results, "ERR", f"flow_{label}_parse", f"YAML parse error: {err}")
+    else:
+        _record(results, "OK", f"flow_{label}_parse",
+                f"{label} flow: all step.yaml files parse cleanly")
 
 
 def _finish(results, strict: bool, json_mode: bool) -> None:
