@@ -51,16 +51,14 @@ def _flow_create_impl(ctx, tool_name, step_name, sub_steps, invoke_cmd):
     if not tool_name or not step_name:
         raise click.ClickException("Tool name and step name cannot be empty.")
 
-    sub_steps_default = _suggest_sub_steps_default(tool_name, step_name)
     sub_steps_input = sub_steps or click.prompt(
         "Sub steps, comma separated (example: global_place,detail_place)",
-        default=sub_steps_default,
+        default=step_name,
         show_default=True,
     )
     parsed_sub_steps = _parse_sub_steps(sub_steps_input)
     if not parsed_sub_steps:
         raise click.ClickException("At least one sub step is required.")
-    sub_step_specs = _build_sub_step_specs(tool_name, step_name, parsed_sub_steps)
 
     invoke_items = _collect_invoke_items(tool_name, step_name, invoke_cmd)
 
@@ -69,7 +67,6 @@ def _flow_create_impl(ctx, tool_name, step_name, sub_steps, invoke_cmd):
         tool_name=tool_name,
         step_name=step_name,
         sub_steps=parsed_sub_steps,
-        sub_step_specs=sub_step_specs,
         invoke_items=invoke_items,
     )
 
@@ -181,29 +178,6 @@ def _prompt_select_or_new(label: str, options: List[str]) -> str:
 
 def _parse_sub_steps(raw: str) -> List[str]:
     return [x.strip() for x in raw.split(",") if x.strip()]
-
-
-def _suggest_sub_steps_default(tool_name: str, step_name: str) -> str:
-    t = (tool_name or "").strip().lower()
-    s = (step_name or "").strip().lower()
-    if t == "pv_calibre" and s == "drc":
-        return "prepare_svrf,run_calibre"
-    return step_name
-
-
-def _build_sub_step_specs(tool_name: str, step_name: str, sub_steps: List[str]) -> List[Dict[str, str]]:
-    """Build sub-step specs; keep legacy behavior unless a known pattern applies."""
-    t = (tool_name or "").strip().lower()
-    s = (step_name or "").strip().lower()
-    if t == "pv_calibre" and s == "drc":
-        specs = []
-        for name in sub_steps:
-            if name == "run_calibre":
-                specs.append({"name": name, "runner": "shell", "command": "bash run_drc.sh"})
-            else:
-                specs.append({"name": name, "runner": "tcl"})
-        return specs
-    return [{"name": name, "runner": "tcl"} for name in sub_steps]
 
 
 def _prompt_select_or_input_tool(context: dict, flow_root: Path) -> str:
@@ -379,8 +353,7 @@ def _load_tool_selection(flow_base: Path, flow_overlay: Path) -> Dict[str, str]:
 
 
 def _write_flow_scaffold(flow_root: Path, tool_name: str, step_name: str,
-                         sub_steps: List[str], sub_step_specs: List[Dict[str, str]],
-                         invoke_items: List[str]) -> List[Path]:
+                         sub_steps: List[str], invoke_items: List[str]) -> List[Path]:
     created: List[Path] = []
     cmds_dir = flow_root / "cmds" / tool_name
     steps_dir = cmds_dir / "steps" / step_name
@@ -389,7 +362,7 @@ def _write_flow_scaffold(flow_root: Path, tool_name: str, step_name: str,
     steps_dir.mkdir(parents=True, exist_ok=True)
 
     step_yaml = cmds_dir / "step.yaml"
-    _update_step_yaml(step_yaml, tool_name, step_name, sub_step_specs, invoke_items)
+    _update_step_yaml(step_yaml, tool_name, step_name, sub_steps, invoke_items)
     created.append(step_yaml)
 
     config_yaml = cmds_dir / "config.yaml"
@@ -408,11 +381,7 @@ def _write_flow_scaffold(flow_root: Path, tool_name: str, step_name: str,
         )
         created.append(config_yaml)
 
-    for spec in sub_step_specs:
-        sub = spec.get("name", "")
-        runner = spec.get("runner", "tcl")
-        if runner != "tcl":
-            continue
+    for sub in sub_steps:
         sub_file = steps_dir / f"{sub}.tcl"
         if not sub_file.exists():
             sub_file.write_text(
@@ -425,7 +394,7 @@ def _write_flow_scaffold(flow_root: Path, tool_name: str, step_name: str,
 
 
 def _update_step_yaml(step_yaml: Path, tool_name: str, step_name: str,
-                      sub_step_specs: List[Dict[str, str]], invoke_items: List[str]) -> None:
+                      sub_steps: List[str], invoke_items: List[str]) -> None:
     data = {}
     existed = step_yaml.exists()
     if existed:
@@ -440,7 +409,7 @@ def _update_step_yaml(step_yaml: Path, tool_name: str, step_name: str,
 
     supported[step_name] = {
         "invoke": invoke_items,
-        "sub_steps": sub_step_specs,
+        "sub_steps": sub_steps,
     }
     body = yaml.safe_dump(data, sort_keys=False, allow_unicode=True)
     if existed:

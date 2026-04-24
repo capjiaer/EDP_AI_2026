@@ -31,13 +31,8 @@ pv_calibre:
         - "{tee} $edp(step).log"
     drc:
       invoke:
-        - "tclsh $edp(script)"
-      sub_steps:
-        - name: prepare_svrf
-          runner: tcl
-        - name: run_calibre
-          runner: shell
-          command: "bash run_drc.sh"
+        - "calibre -drc -hier -turbo {cpu_num}"
+        - "{tee} $edp(step).log"
     lvs:
       invoke:
         - "calibre -lvs -hier -turbo {cpu_num}"
