@@ -36,7 +36,7 @@ def generate_config_tcl(builder, tool_name: str, step_name: str) -> Path:
     if cfg:
         config_files.append(cfg)
 
-    output_path = builder.workdir_path / "cmds" / tool_name / f"{step_name}_config.tcl"
+    output_path = builder.workdir_path / "cmds" / tool_name / step_name / "config.tcl"
     if not config_files:
         output_path.parent.mkdir(parents=True, exist_ok=True)
         output_path.write_text(

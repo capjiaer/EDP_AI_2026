@@ -48,7 +48,7 @@ class ScriptBuilder:
         self.workdir_path = Path(workdir_path)
         self.overlay_path = Path(overlay_path) if overlay_path else None
         default_common_packages_path = (
-            self.flow_base_path.parent.parent.parent.parent.parent / "common_packages"
+            self.flow_base_path.parent.parent.parent.parent / "common_packages"
         )
         resolved_common_packages_path = (
             Path(common_packages_path) if common_packages_path else default_common_packages_path
@@ -94,8 +94,8 @@ class ScriptBuilder:
 
         project = self.overlay_path.name if self.overlay_path else "common"
 
-        script_name = f"{step_name}_debug.tcl" if debug else f"{step_name}.tcl"
-        tcl_path = self.workdir_path / "cmds" / tool_name / script_name
+        script_name = "debug.tcl" if debug else "step.tcl"
+        tcl_path = self.workdir_path / "cmds" / tool_name / step_name / script_name
         run_dir = self.workdir_path / "runs" / tool_name / step_name
 
         result = {
@@ -166,15 +166,17 @@ class ScriptBuilder:
         # 1. 生成 per-step config.tcl
         self._generate_config_tcl(tool_name, step_name)
 
-        # 2. 生成主 .tcl 脚本 → cmds/{tool}/
+        step_cmd_dir = self.workdir_path / "cmds" / tool_name / step_name
+        step_cmd_dir.mkdir(parents=True, exist_ok=True)
+
+        # 2. 生成主 .tcl 脚本 → cmds/{tool}/{step}/step.tcl
         tcl_content = self.build_step_script(tool_name, step_name)
-        tcl_path = self.workdir_path / "cmds" / tool_name / f"{step_name}.tcl"
-        tcl_path.parent.mkdir(parents=True, exist_ok=True)
+        tcl_path = step_cmd_dir / "step.tcl"
         tcl_path.write_text(tcl_content, encoding='utf-8')
 
-        # 3. 生成 debug 脚本 → cmds/{tool}/
+        # 3. 生成 debug 脚本 → cmds/{tool}/{step}/debug.tcl
         debug_content = self.build_debug_script(tool_name, step_name)
-        debug_path = self.workdir_path / "cmds" / tool_name / f"{step_name}_debug.tcl"
+        debug_path = step_cmd_dir / "debug.tcl"
         debug_path.write_text(debug_content, encoding='utf-8')
 
         # 4. 生成 shell 启动脚本（按当前 shell）→ runs/{tool}/{step}/
@@ -268,7 +270,7 @@ class ScriptBuilder:
 
     def _build_config_source(self, tool_name: str, step_name: str) -> str:
         """生成 config.tcl 的 source 语句"""
-        config_path = self.workdir_path / "cmds" / tool_name / f"{step_name}_config.tcl"
+        config_path = self.workdir_path / "cmds" / tool_name / step_name / "config.tcl"
         lines = [
             "# ============================================================",
             "# Config Variables",

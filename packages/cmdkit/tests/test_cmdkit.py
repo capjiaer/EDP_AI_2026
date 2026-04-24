@@ -214,14 +214,14 @@ class TestConfigSection(TestScriptBuilderBase):
         script = builder.build_step_script("pnr_innovus", "place")
 
         self.assertIn("Config Variables", script)
-        self.assertIn("place_config.tcl", script)
+        self.assertIn("config.tcl", script)
 
     def test_config_tcl_generated(self):
         """_generate_config_tcl 生成独立的 config 文件"""
         builder = self._builder()
         builder.write_step_script("pnr_innovus", "place")
 
-        config_path = self.workdir / "cmds" / "pnr_innovus" / "place_config.tcl"
+        config_path = self.workdir / "cmds" / "pnr_innovus" / "place" / "config.tcl"
         self.assertTrue(config_path.exists())
         content = config_path.read_text(encoding='utf-8')
         self.assertIn("set pnr_innovus(version)", content)
@@ -240,7 +240,7 @@ pnr_innovus:
         builder = self._builder(overlay=overlay)
         builder.write_step_script("pnr_innovus", "place")
 
-        config_path = self.workdir / "cmds" / "pnr_innovus" / "place_config.tcl"
+        config_path = self.workdir / "cmds" / "pnr_innovus" / "place" / "config.tcl"
         content = config_path.read_text(encoding='utf-8')
 
         self.assertIn("{extreme}", content)
@@ -254,7 +254,7 @@ pnr_innovus:
         builder = self._builder()
         builder.write_step_script("pnr_innovus", "place")
 
-        config_path = self.workdir / "cmds" / "pnr_innovus" / "place_config.tcl"
+        config_path = self.workdir / "cmds" / "pnr_innovus" / "place" / "config.tcl"
         self.assertTrue(config_path.exists())
         content = config_path.read_text(encoding='utf-8')
         self.assertIn("No config files found", content)
@@ -351,7 +351,7 @@ class TestDebugScript(TestScriptBuilderBase):
         builder = self._builder()
         debug = builder.build_debug_script("pnr_innovus", "place")
 
-        self.assertIn("place_config.tcl", debug)
+        self.assertIn("config.tcl", debug)
 
     def test_debug_excludes_edp_debug_from_phase1(self):
         """debug 脚本的 Phase 1 不 source edp_debug.tcl"""
@@ -368,7 +368,7 @@ class TestDebugScript(TestScriptBuilderBase):
         # 确保它在 Phase 1 之后
         phase1_idx = debug.index("Phase 1: Source")
         debug_cli_idx = debug.index("edp_debug.tcl")
-        config_idx = debug.index("place_config.tcl")
+        config_idx = debug.index("config.tcl")
         self.assertLess(phase1_idx, config_idx)
         self.assertLess(config_idx, debug_cli_idx)
 
@@ -420,7 +420,7 @@ class TestShellGeneration(TestScriptBuilderBase):
         builder = self._builder()
         sh = builder.build_step_shell("pnr_innovus", "place")
 
-        self.assertIn("place.tcl", sh)
+        self.assertIn("step.tcl", sh)
         self.assertNotIn("$edp(", sh)
 
     def test_shell_conditional_var(self):
@@ -472,11 +472,11 @@ pnr_innovus:
         self.assertNotIn("{effort}", sh)
 
     def test_debug_shell_uses_debug_tcl(self):
-        """debug shell 使用 *_debug.tcl"""
+        """debug shell 使用 step-dir debug.tcl"""
         builder = self._builder()
         sh = builder.build_step_shell("pnr_innovus", "place", debug=True)
 
-        self.assertIn("place_debug.tcl", sh)
+        self.assertIn("/debug.tcl", sh)
         self.assertNotIn("$edp(", sh)
 
     def test_csh_shell_generated(self):
@@ -534,7 +534,7 @@ class TestWriteStepScript(TestScriptBuilderBase):
         builder = self._builder()
         builder.write_step_script("pnr_innovus", "place")
 
-        tcl_path = self.workdir / "cmds" / "pnr_innovus" / "place.tcl"
+        tcl_path = self.workdir / "cmds" / "pnr_innovus" / "place" / "step.tcl"
         self.assertTrue(tcl_path.exists())
         content = tcl_path.read_text(encoding='utf-8')
         self.assertIn("Phase 1: Source", content)
@@ -544,7 +544,7 @@ class TestWriteStepScript(TestScriptBuilderBase):
         builder = self._builder()
         builder.write_step_script("pnr_innovus", "place")
 
-        debug_path = self.workdir / "cmds" / "pnr_innovus" / "place_debug.tcl"
+        debug_path = self.workdir / "cmds" / "pnr_innovus" / "place" / "debug.tcl"
         self.assertTrue(debug_path.exists())
         content = debug_path.read_text(encoding='utf-8')
         self.assertIn("EDP Debug Mode", content)
@@ -578,7 +578,7 @@ class TestWriteStepScript(TestScriptBuilderBase):
         sh_path = self.workdir / "runs" / "pnr_innovus" / "place" / "place_debug.sh"
         self.assertTrue(sh_path.exists())
         content = sh_path.read_text(encoding='utf-8')
-        self.assertIn("place_debug.tcl", content)
+        self.assertIn("/debug.tcl", content)
         csh_path = self.workdir / "runs" / "pnr_innovus" / "place" / "place_debug.csh"
         self.assertFalse(csh_path.exists())
 
@@ -589,13 +589,13 @@ class TestWriteStepScript(TestScriptBuilderBase):
         csh_path = self.workdir / "runs" / "pnr_innovus" / "place" / "place_debug.csh"
         self.assertTrue(csh_path.exists())
         content = csh_path.read_text(encoding='utf-8')
-        self.assertIn("place_debug.tcl", content)
+        self.assertIn("/debug.tcl", content)
 
     def test_write_creates_config_tcl(self):
         builder = self._builder()
         builder.write_step_script("pnr_innovus", "place")
 
-        config_path = self.workdir / "cmds" / "pnr_innovus" / "place_config.tcl"
+        config_path = self.workdir / "cmds" / "pnr_innovus" / "place" / "config.tcl"
         self.assertTrue(config_path.exists())
 
 
