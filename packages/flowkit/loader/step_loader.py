@@ -40,6 +40,52 @@ class StepRegistry:
     def __init__(self):
         self._registry: Dict[str, Dict[str, Dict[str, Any]]] = {}
 
+    @staticmethod
+    def _normalize_sub_steps(sub_steps: Any, tool_name: str, step_name: str) -> List[Dict[str, str]]:
+        """Normalize sub_steps into spec list: [{name, runner, command?}]"""
+        if sub_steps is None:
+            return []
+        if not isinstance(sub_steps, list):
+            raise ValueError(
+                f"工具 {tool_name} 步骤 {step_name} 的 sub_steps 格式无效，应为列表"
+            )
+
+        normalized: List[Dict[str, str]] = []
+        for idx, item in enumerate(sub_steps):
+            if isinstance(item, str):
+                name = item.strip()
+                if not name:
+                    raise ValueError(
+                        f"工具 {tool_name} 步骤 {step_name} 的 sub_steps[{idx}] 不能为空字符串"
+                    )
+                normalized.append({"name": name, "runner": "tcl"})
+                continue
+
+            if isinstance(item, dict):
+                name = str(item.get("name", "")).strip()
+                runner = str(item.get("runner", "tcl")).strip().lower()
+                if not name:
+                    raise ValueError(
+                        f"工具 {tool_name} 步骤 {step_name} 的 sub_steps[{idx}] 缺少 name"
+                    )
+                if runner not in ("tcl", "shell"):
+                    raise ValueError(
+                        f"工具 {tool_name} 步骤 {step_name} 的 sub_steps[{idx}] runner 无效: {runner}"
+                    )
+                spec: Dict[str, str] = {"name": name, "runner": runner}
+                if runner == "shell":
+                    cmd = item.get("command", "")
+                    if cmd is not None and str(cmd).strip():
+                        spec["command"] = str(cmd).strip()
+                normalized.append(spec)
+                continue
+
+            raise ValueError(
+                f"工具 {tool_name} 步骤 {step_name} 的 sub_steps[{idx}] 格式无效，"
+                "应为字符串或字典"
+            )
+        return normalized
+
     def register_tool_steps(self, step_file: Path) -> None:
         """从 step.yaml 文件注册工具步骤
 
@@ -69,7 +115,9 @@ class StepRegistry:
 
             for step_name, step_data in supported_steps.items():
                 if isinstance(step_data, dict):
-                    sub_steps = step_data.get("sub_steps", [])
+                    sub_steps = self._normalize_sub_steps(
+                        step_data.get("sub_steps", []), tool_name, step_name
+                    )
                     invoke = step_data.get("invoke", [])
                 else:
                     raise ValueError(
@@ -108,7 +156,9 @@ class StepRegistry:
 
             for step_name, step_data in supported_steps.items():
                 if isinstance(step_data, dict):
-                    sub_steps = step_data.get("sub_steps", [])
+                    sub_steps = self._normalize_sub_steps(
+                        step_data.get("sub_steps", []), tool_name, step_name
+                    )
                     invoke = step_data.get("invoke", [])
                 else:
                     continue
@@ -125,7 +175,17 @@ class StepRegistry:
             raise ValueError(f"工具 {tool_name} 未注册")
         if step_name not in self._registry[tool_name]:
             raise ValueError(f"工具 {tool_name} 没有步骤 {step_name}")
-        return list(self._registry[tool_name][step_name]["sub_steps"])
+        specs = self._registry[tool_name][step_name]["sub_steps"]
+        return [str(s.get("name", "")) for s in specs if isinstance(s, dict)]
+
+    def get_sub_step_specs(self, tool_name: str, step_name: str) -> List[Dict[str, str]]:
+        """获取步骤的 sub_step 规格列表（含 runner）。"""
+        if tool_name not in self._registry:
+            raise ValueError(f"工具 {tool_name} 未注册")
+        if step_name not in self._registry[tool_name]:
+            raise ValueError(f"工具 {tool_name} 没有步骤 {step_name}")
+        specs = self._registry[tool_name][step_name]["sub_steps"]
+        return [dict(s) for s in specs]
 
     def get_invoke(self, tool_name: str, step_name: str) -> List[str]:
         """获取步骤的 invoke 列表"""

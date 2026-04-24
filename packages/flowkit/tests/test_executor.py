@@ -625,6 +625,22 @@ class TestLSFRunner(unittest.TestCase):
         n_indices = [i for i, c in enumerate(cmd) if c == "-n"]
         self.assertEqual(len(n_indices), 0, "cpu_num=1 不应加 -n")
 
+    def test_hosts_option_maps_to_m(self):
+        """hosts 参数映射为 bsub -m"""
+        runner = LSFRunner(hosts="hostA hostB")
+        cmd = runner._build_bsub_cmd("test", Path("/tmp/test.sh"))
+
+        self.assertIn("-m", cmd)
+        self.assertIn("hostA hostB", cmd)
+
+    def test_job_name_override(self):
+        """job_name 可覆盖默认 step 名称"""
+        runner = LSFRunner(job_name="custom_job")
+        cmd = runner._build_bsub_cmd("place", Path("/tmp/test.sh"))
+
+        j_idx = cmd.index("-J")
+        self.assertEqual(cmd[j_idx + 1], "custom_job")
+
     def test_is_runner_subclass(self):
         """LSFRunner 是 Runner 的子类"""
         runner = LSFRunner()

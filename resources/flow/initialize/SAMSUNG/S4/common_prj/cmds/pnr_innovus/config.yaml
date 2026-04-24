@@ -2,6 +2,22 @@
 # pnr_innovus 工具配置文件
 # Innovus 运行时所需的配置项：init 参数、RC corner、tech LEF 路径等
 # project 级的同名文件会覆盖此文件
+#
+# LSF 字段说明（调度层，不参与 invoke 的 {var} 展开）:
+# - lsf_mode: 1=LSF(bsub), 0=Local
+# - queue:    对应 bsub -q
+# - cpu_num:  对应 bsub -n（>1 时生效）
+# - hosts:    对应 bsub -m（主机约束，如 "hostA hostB"）
+# - mem_limit:对应 bsub -R "span[hosts=1] rusage[mem=...]"
+# - wall_time:对应 bsub -W（如 "4:00"）
+# - job_name: 对应 bsub -J（未设置时默认 step 名）
+# - extra_opts: 透传额外 bsub 参数（按空格切分）
+# - 运行模式:
+#   - 默认使用 bsub -K
+#   - edp run --debug 时使用 bsub -Ip（当前不从 config.yaml 读取 mode）
+#
+# 典型命令形态（示意）:
+#   bsub -K|-Ip -J <job_name_or_step> -q <queue> -n <cpu_num> -m "<hosts>" ... <launcher> <script>
 
 pnr_innovus:
   lsf:

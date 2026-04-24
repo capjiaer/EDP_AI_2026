@@ -6,7 +6,7 @@ edp.commands.flow_cmd - Flow tutor commands
 """
 
 from pathlib import Path
-from typing import List
+from typing import Dict, List
 
 import click
 import yaml
@@ -41,10 +41,9 @@ def _flow_create_impl(ctx, tool_name, step_name, sub_steps, invoke_cmd):
 
     click.echo("Flow Tutor (MVP): press Enter to accept defaults.")
     click.echo("Merge rule: overlay same step = override; new step = append.")
-    tool_name = tool_name or click.prompt(
-        "Tool name (example: pnr_innovus)",
-        type=str,
-    ).strip()
+    if not tool_name:
+        tool_name = _prompt_select_or_input_tool(context, flow_root)
+    _print_existing_steps(context, flow_root, tool_name)
     step_name = step_name or click.prompt(
         "Step name (example: place)",
         type=str,
@@ -52,28 +51,26 @@ def _flow_create_impl(ctx, tool_name, step_name, sub_steps, invoke_cmd):
     if not tool_name or not step_name:
         raise click.ClickException("Tool name and step name cannot be empty.")
 
+    sub_steps_default = _suggest_sub_steps_default(tool_name, step_name)
     sub_steps_input = sub_steps or click.prompt(
         "Sub steps, comma separated (example: global_place,detail_place)",
-        default=step_name,
+        default=sub_steps_default,
         show_default=True,
     )
     parsed_sub_steps = _parse_sub_steps(sub_steps_input)
     if not parsed_sub_steps:
         raise click.ClickException("At least one sub step is required.")
+    sub_step_specs = _build_sub_step_specs(tool_name, step_name, parsed_sub_steps)
 
-    invoke_default = f"{tool_name} -init $edp(script)"
-    invoke_cmd = invoke_cmd or click.prompt(
-        "Invoke command template (example: innovus -init $edp(script))",
-        default=invoke_default,
-        show_default=True,
-    )
+    invoke_items = _collect_invoke_items(tool_name, step_name, invoke_cmd)
 
     created = _write_flow_scaffold(
         flow_root=flow_root,
         tool_name=tool_name,
         step_name=step_name,
         sub_steps=parsed_sub_steps,
-        invoke_cmd=invoke_cmd,
+        sub_step_specs=sub_step_specs,
+        invoke_items=invoke_items,
     )
 
     click.echo(click.style("Flow scaffold created.", fg="green"))
@@ -186,8 +183,204 @@ def _parse_sub_steps(raw: str) -> List[str]:
     return [x.strip() for x in raw.split(",") if x.strip()]
 
 
+def _suggest_sub_steps_default(tool_name: str, step_name: str) -> str:
+    t = (tool_name or "").strip().lower()
+    s = (step_name or "").strip().lower()
+    if t == "pv_calibre" and s == "drc":
+        return "prepare_svrf,run_calibre"
+    return step_name
+
+
+def _build_sub_step_specs(tool_name: str, step_name: str, sub_steps: List[str]) -> List[Dict[str, str]]:
+    """Build sub-step specs; keep legacy behavior unless a known pattern applies."""
+    t = (tool_name or "").strip().lower()
+    s = (step_name or "").strip().lower()
+    if t == "pv_calibre" and s == "drc":
+        specs = []
+        for name in sub_steps:
+            if name == "run_calibre":
+                specs.append({"name": name, "runner": "shell", "command": "bash run_drc.sh"})
+            else:
+                specs.append({"name": name, "runner": "tcl"})
+        return specs
+    return [{"name": name, "runner": "tcl"} for name in sub_steps]
+
+
+def _prompt_select_or_input_tool(context: dict, flow_root: Path) -> str:
+    """Prompt tool by index or direct input name."""
+    options = _collect_tool_candidates(context, flow_root)
+    click.echo("Available tools:")
+    if options:
+        for idx, item in enumerate(options, 1):
+            click.echo(f"  [{idx}] {item}")
+    else:
+        click.echo("  (none)")
+
+    raw = click.prompt(
+        "Select tool (number or new_tool_name)",
+        type=str,
+    ).strip()
+    if not raw:
+        raise click.ClickException("Tool name cannot be empty.")
+    if raw.isdigit():
+        index = int(raw)
+        if 1 <= index <= len(options):
+            return options[index - 1]
+        raise click.ClickException(f"Invalid tool selection index: {index}")
+    return raw
+
+
+def _collect_tool_candidates(context: dict, flow_root: Path) -> List[str]:
+    """Collect existing tool names from flow cmds dirs + step_config."""
+    tools = set()
+    cmds_dir = flow_root / "cmds"
+    if cmds_dir.exists():
+        for p in cmds_dir.iterdir():
+            if p.is_dir() and not p.name.startswith("."):
+                tools.add(p.name)
+
+    tool_selection = context.get("tool_selection") or {}
+    if not tool_selection:
+        tool_selection = _load_tool_selection(
+            context.get("flow_base_path"),
+            context.get("flow_overlay_path"),
+        )
+    tools.update(tool_selection.values())
+    return sorted(tools)
+
+
+def _collect_invoke_items(tool_name: str, step_name: str, invoke_cmd: str = None) -> List[str]:
+    """Collect invoke segments with live preview."""
+    if invoke_cmd:
+        items = [invoke_cmd.strip()]
+        _print_invoke_preview(items)
+        return items
+
+    click.echo("")
+    click.echo("Invoke builder:")
+    click.echo("  - Enter one segment per line (in order).")
+    click.echo("  - Press Enter on empty line to finish.")
+    click.echo("  - LSF settings are configured in config.yaml (lsf block), not here.")
+
+    items: List[str] = []
+    default_first = _suggest_invoke_default(tool_name, step_name)
+    while True:
+        prompt = "Invoke segment"
+        if not items:
+            raw = click.prompt(prompt, default=default_first, show_default=True).strip()
+        else:
+            raw = click.prompt(prompt, default="", show_default=False).strip()
+            if not raw:
+                break
+        items.append(raw)
+        _print_invoke_preview(items)
+
+    if not items:
+        raise click.ClickException("At least one invoke segment is required.")
+    return items
+
+
+def _suggest_invoke_default(tool_name: str, step_name: str) -> str:
+    """Suggest a practical first invoke segment based on tool/step."""
+    t = (tool_name or "").strip().lower()
+    s = (step_name or "").strip().lower()
+
+    if t == "pv_calibre":
+        if s == "drc":
+            return "calibre -drc -hier -turbo {cpu_num}"
+        if s == "lvs":
+            return "calibre -lvs -hier -turbo {cpu_num}"
+        if s == "perc":
+            return "calibre -perc -hier -turbo {cpu_num}"
+        if s == "ipmerge":
+            return "calibre -ipmerge"
+        if s == "dummy":
+            return "calibre -dummy"
+        return "calibre -drc -hier -turbo {cpu_num}"
+
+    if t == "pnr_innovus":
+        return "innovus -init $edp(script)"
+
+    if t == "sta_pt":
+        return "sta_pt -init $edp(script)"
+
+    return f"{tool_name} -init $edp(script)"
+
+
+def _print_invoke_preview(items: List[str]) -> None:
+    click.echo(f"  Current invoke ({len(items)} segment(s)):")
+    for idx, item in enumerate(items, 1):
+        click.echo(f"    [{idx}] {item}")
+    click.echo(f"  Joined command: {' '.join(items)}")
+    click.echo("")
+
+
+def _print_existing_steps(context: dict, flow_root: Path, tool_name: str) -> None:
+    """Show provided/activated steps for the selected tool."""
+    supported = _load_supported_steps(flow_root, tool_name)
+    activated = _load_activated_steps(context, tool_name)
+
+    click.echo("")
+    click.echo(f"Tool '{tool_name}' visibility:")
+    click.echo(
+        f"  provided steps ({len(supported)}): "
+        f"{', '.join(supported) if supported else '(none)'}"
+    )
+    click.echo(
+        f"  activated steps ({len(activated)}): "
+        f"{', '.join(activated) if activated else '(none)'}"
+    )
+    click.echo("")
+
+
+def _load_supported_steps(flow_root: Path, tool_name: str) -> List[str]:
+    step_yaml = flow_root / "cmds" / tool_name / "step.yaml"
+    if not step_yaml.exists():
+        return []
+    data = yaml.safe_load(step_yaml.read_text(encoding="utf-8")) or {}
+    tool_block = data.get(tool_name, {})
+    supported = tool_block.get("supported_steps", {}) if isinstance(tool_block, dict) else {}
+    if not isinstance(supported, dict):
+        return []
+    return sorted(supported.keys())
+
+
+def _load_activated_steps(context: dict, tool_name: str) -> List[str]:
+    tool_selection = context.get("tool_selection") or {}
+    if not tool_selection:
+        tool_selection = _load_tool_selection(
+            context.get("flow_base_path"),
+            context.get("flow_overlay_path"),
+        )
+    return sorted([step for step, tool in tool_selection.items() if tool == tool_name])
+
+
+def _load_tool_selection(flow_base: Path, flow_overlay: Path) -> Dict[str, str]:
+    config_path = None
+    if flow_overlay and flow_overlay.exists():
+        p = flow_overlay / "step_config.yaml"
+        if p.exists():
+            config_path = p
+    if not config_path and flow_base and flow_base.exists():
+        p = flow_base / "step_config.yaml"
+        if p.exists():
+            config_path = p
+    if not config_path:
+        return {}
+
+    data = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
+    result = {}
+    for entry in data.get("steps", []):
+        text = str(entry)
+        if "." in text:
+            tool, step = text.rsplit(".", 1)
+            result[step] = tool
+    return result
+
+
 def _write_flow_scaffold(flow_root: Path, tool_name: str, step_name: str,
-                         sub_steps: List[str], invoke_cmd: str) -> List[Path]:
+                         sub_steps: List[str], sub_step_specs: List[Dict[str, str]],
+                         invoke_items: List[str]) -> List[Path]:
     created: List[Path] = []
     cmds_dir = flow_root / "cmds" / tool_name
     steps_dir = cmds_dir / "steps" / step_name
@@ -196,7 +389,7 @@ def _write_flow_scaffold(flow_root: Path, tool_name: str, step_name: str,
     steps_dir.mkdir(parents=True, exist_ok=True)
 
     step_yaml = cmds_dir / "step.yaml"
-    _update_step_yaml(step_yaml, tool_name, step_name, sub_steps, invoke_cmd)
+    _update_step_yaml(step_yaml, tool_name, step_name, sub_step_specs, invoke_items)
     created.append(step_yaml)
 
     config_yaml = cmds_dir / "config.yaml"
@@ -215,7 +408,11 @@ def _write_flow_scaffold(flow_root: Path, tool_name: str, step_name: str,
         )
         created.append(config_yaml)
 
-    for sub in sub_steps:
+    for spec in sub_step_specs:
+        sub = spec.get("name", "")
+        runner = spec.get("runner", "tcl")
+        if runner != "tcl":
+            continue
         sub_file = steps_dir / f"{sub}.tcl"
         if not sub_file.exists():
             sub_file.write_text(
@@ -228,7 +425,7 @@ def _write_flow_scaffold(flow_root: Path, tool_name: str, step_name: str,
 
 
 def _update_step_yaml(step_yaml: Path, tool_name: str, step_name: str,
-                      sub_steps: List[str], invoke_cmd: str) -> None:
+                      sub_step_specs: List[Dict[str, str]], invoke_items: List[str]) -> None:
     data = {}
     existed = step_yaml.exists()
     if existed:
@@ -242,8 +439,8 @@ def _update_step_yaml(step_yaml: Path, tool_name: str, step_name: str,
         )
 
     supported[step_name] = {
-        "invoke": [invoke_cmd],
-        "sub_steps": sub_steps,
+        "invoke": invoke_items,
+        "sub_steps": sub_step_specs,
     }
     body = yaml.safe_dump(data, sort_keys=False, allow_unicode=True)
     if existed:

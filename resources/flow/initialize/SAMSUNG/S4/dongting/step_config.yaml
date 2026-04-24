@@ -1,6 +1,8 @@
 # step_config.yaml
 # dongting 项目级 step→tool 映射
 # 继承 S4/common_prj，同名文件整体覆盖
+# 本文件是应用层开关：只列出当前项目要启用的 step
+# cmds/*/step.yaml 的 supported_steps 仅表示可提供能力，不等于默认执行
 
 steps:
   - pnr_innovus.init

@@ -1,7 +1,9 @@
 # step_config.yaml
 # S4 节点级 step→tool 映射
 # 格式: tool_name.step_name
-# 编排者显式指定每个 step 使用哪个工具
+# 编排者显式指定“实际启用”的 step（应用层）
+# 注意：cmds/*/step.yaml 只定义工具可提供的能力（供给层）
+#      真正执行集合由本文件 steps 列表决定
 # project 级的同名文件会覆盖此文件
 
 steps:

@@ -32,7 +32,11 @@ def collect_source_files(builder, tool_name: str, step_name: str,
 
     if builder.registry.has_step(tool_name, step_name):
         steps_dir = builder.flow_base_path / "cmds" / tool_name / "steps" / step_name
-        for sub in builder.registry.get_sub_steps(tool_name, step_name):
+        for spec in builder.registry.get_sub_step_specs(tool_name, step_name):
+            sub = spec.get("name", "")
+            runner = spec.get("runner", "tcl")
+            if runner != "tcl":
+                continue
             sub_file = steps_dir / f"{sub}.tcl"
             if sub_file.exists():
                 source_files.append(sub_file.resolve())

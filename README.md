@@ -66,6 +66,19 @@ base config.yaml → overlay config.yaml → user_config.yaml
 
 后面覆盖前面，`files2tcl` 生成单一 config.tcl，标注每个变量的来源、`[override]` 和 `[new]`。
 
+### Step Supply vs Activation
+
+- `cmds/{tool}/step.yaml`（供给层）：定义工具“可提供”的 step（`supported_steps`、`invoke`、`sub_steps`）。
+- `step_config.yaml`（应用层）：定义当前 flow “实际启用”的 step（`steps` 列表）。
+- 结论：`step.yaml` 的能力声明不会自动进入执行面，是否执行以 `step_config.yaml` 为准。
+
+### Invoke vs LSF
+
+- `invoke`（命令层）：只负责工具命令拼接与变量展开（`{var}`、`$var`、`$edp(var)`）。
+- `lsf`（调度层）：只负责 bsub 资源参数（`lsf_mode`、`queue`、`cpu_num`、`mem_limit`、`wall_time`）。
+- 映射关系：`queue -> bsub -q`，`cpu_num -> bsub -n`（仅 `>1` 生效），`hosts -> bsub -m`，`mem_limit -> bsub -R`，`wall_time -> bsub -W`，`job_name -> bsub -J`，`extra_opts` 透传。
+- 运行模式：默认 `bsub -K`，`edp run --debug` 使用 `bsub -Ip`（当前不从 `config.yaml` 读取 mode）。
+
 ### Generated Scripts (per step)
 
 | 文件 | 用途 |

@@ -326,6 +326,30 @@ proc place_global_place_post {} {
         self.assertNotIn("place_global_place_pre", exec_section)
         self.assertNotIn("place_global_place_post", exec_section)
 
+    def test_execute_supports_shell_runner_sub_step(self):
+        """sub_steps 支持 runner=shell，执行阶段生成 shell 调用语句。"""
+        _write(self.flow_base / "cmds" / "pnr_innovus" / "step.yaml", """
+pnr_innovus:
+  supported_steps:
+    place:
+      invoke:
+        - "innovus -init $edp(script)"
+      sub_steps:
+        - name: global_place
+          runner: tcl
+        - name: run_external
+          runner: shell
+          command: "echo shell_ok"
+""")
+        builder = self._builder()
+        script = builder.build_step_script("pnr_innovus", "place")
+        exec_section = script.split("Phase 2: Execute")[1]
+
+        self.assertIn("global_place", exec_section)
+        self.assertIn("shell sub-step: run_external", exec_section)
+        self.assertIn("exec bash -lc", exec_section)
+        self.assertIn("echo shell_ok", exec_section)
+
 
 # ── Debug Script ──
 

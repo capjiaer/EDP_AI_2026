@@ -100,6 +100,11 @@ class Executor:
             return LSFRunner(
                 queue=lsf_config.get('queue', 'normal'),
                 cpu_num=lsf_config.get('cpu_num', 1),
+                memory=lsf_config.get('mem_limit', ''),
+                wall_time=lsf_config.get('wall_time', ''),
+                extra_opts=lsf_config.get('extra_opts', ''),
+                job_name=lsf_config.get('job_name', ''),
+                hosts=lsf_config.get('hosts', ''),
                 debug=self.debug,
             )
         return self._default_runner

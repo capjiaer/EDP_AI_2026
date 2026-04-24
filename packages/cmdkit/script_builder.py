@@ -228,9 +228,13 @@ class ScriptBuilder:
 
         if self.registry.has_step(tool_name, step_name):
             steps_dir = self.flow_base_path / "cmds" / tool_name / "steps" / step_name
-            sub_steps = self.registry.get_sub_steps(tool_name, step_name)
+            sub_specs = self.registry.get_sub_step_specs(tool_name, step_name)
             has_any = False
-            for sub in sub_steps:
+            for spec in sub_specs:
+                sub = spec.get("name", "")
+                runner = spec.get("runner", "tcl")
+                if runner != "tcl":
+                    continue
                 sub_file = steps_dir / f"{sub}.tcl"
                 if sub_file.exists():
                     if not has_any:
@@ -295,16 +299,37 @@ class ScriptBuilder:
             lines.append(f"# WARNING: step '{step_name}' not found in {tool_name}")
             return '\n'.join(lines)
 
-        sub_steps = self.registry.get_sub_steps(tool_name, step_name)
+        sub_specs = self.registry.get_sub_step_specs(tool_name, step_name)
         steps_dir = self.flow_base_path / "cmds" / tool_name / "steps" / step_name
 
-        for sub in sub_steps:
+        for spec in sub_specs:
+            sub = spec.get("name", "")
+            runner = spec.get("runner", "tcl")
+            if runner == "shell":
+                cmd = spec.get("command", "")
+                lines.append(f"# shell sub-step: {sub}")
+                if cmd:
+                    lines.append(f'puts ">>> [shell:{sub}] {cmd}"')
+                    lines.append(f'if {{[catch {{exec bash -lc "{cmd.replace(chr(34), chr(92)+chr(34))}"}} err]}} {{')
+                    lines.append(f'    error "shell sub-step {sub} failed: $err"')
+                    lines.append("}")
+                else:
+                    script_file = steps_dir / f"{sub}.sh"
+                    source_comment = _posix(script_file.resolve()) if script_file.exists() else f"{_posix(script_file)} (not found)"
+                    lines.append(f"# {source_comment}")
+                    lines.append(f'if {{![file exists "{_posix(script_file)}"]}} {{')
+                    lines.append(f'    error "shell sub-step script not found: {_posix(script_file)}"')
+                    lines.append("}")
+                    lines.append(f'if {{[catch {{exec bash "{_posix(script_file.resolve())}"}} err]}} {{')
+                    lines.append(f'    error "shell sub-step {sub} failed: $err"')
+                    lines.append("}")
+                lines.append("")
+                continue
+
             sub_file = steps_dir / f"{sub}.tcl"
             source_comment = _posix(sub_file.resolve()) if sub_file.exists() else f"{_posix(sub_file)} (not found)"
             lines.append(f"# {source_comment}")
             lines.append("")
-
-            # sub_step call
             lines.append(sub)
             lines.append("")
 
@@ -395,7 +420,10 @@ class ScriptBuilder:
         # tool 级 lsf 配置
         tool_lsf = tool_config.get('lsf', {})
         if isinstance(tool_lsf, dict):
-            for key in ['lsf_mode', 'cpu_num', 'queue', 'mem_limit', 'job_name']:
+            for key in [
+                'lsf_mode', 'cpu_num', 'queue', 'mem_limit',
+                'wall_time', 'extra_opts', 'job_name', 'hosts'
+            ]:
                 if key in tool_lsf:
                     result[key] = tool_lsf[key]
 
@@ -404,7 +432,10 @@ class ScriptBuilder:
         if isinstance(step_config, dict):
             step_lsf = step_config.get('lsf', {})
             if isinstance(step_lsf, dict):
-                for key in ['lsf_mode', 'cpu_num', 'queue', 'mem_limit', 'job_name']:
+                for key in [
+                    'lsf_mode', 'cpu_num', 'queue', 'mem_limit',
+                    'wall_time', 'extra_opts', 'job_name', 'hosts'
+                ]:
                     if key in step_lsf:
                         result[key] = step_lsf[key]
 

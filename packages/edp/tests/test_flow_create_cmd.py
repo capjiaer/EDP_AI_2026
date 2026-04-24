@@ -251,6 +251,128 @@ class TestFlowCreateCmd(unittest.TestCase):
             self.assertIn("-threads {cpu_num}", step_yaml)
             self.assertIn("Expanded command shape (when vars exist)", step_yaml)
 
+    def test_flowcreate_shows_provided_and_activated_steps_for_tool(self):
+        from edp.cli import cli
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp = Path(tmpdir)
+            ctx = self._mock_context(tmp)
+            tool_dir = ctx["flow_overlay_path"] / "cmds" / "pnr_innovus"
+            tool_dir.mkdir(parents=True, exist_ok=True)
+            (tool_dir / "step.yaml").write_text(
+                (
+                    "pnr_innovus:\n"
+                    "  supported_steps:\n"
+                    "    place:\n"
+                    "      invoke: [\"innovus -init $edp(script)\"]\n"
+                    "      sub_steps: [global_place]\n"
+                ),
+                encoding="utf-8",
+            )
+            ctx["tool_selection"] = {"place": "pnr_innovus", "route": "pnr_innovus"}
+
+            with patch.object(self.flow_module, "_resolve_context") as mock_ctx:
+                mock_ctx.return_value = ctx
+                result = self.runner.invoke(
+                    cli,
+                    [
+                        "--edp-center", tmpdir, "flowcreate",
+                        "--tool", "pnr_innovus",
+                        "--step", "route",
+                        "--sub-steps", "route",
+                        "--invoke", "innovus -init $edp(script)",
+                    ],
+                )
+
+            self.assertEqual(result.exit_code, 0, result.output)
+            self.assertIn("Tool 'pnr_innovus' visibility", result.output)
+            self.assertIn("provided steps (1): place", result.output)
+            self.assertIn("activated steps (2): place, route", result.output)
+
+    def test_flowcreate_collects_multi_invoke_segments_interactively(self):
+        from edp.cli import cli
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp = Path(tmpdir)
+            with patch.object(self.flow_module, "_resolve_context") as mock_ctx:
+                mock_ctx.return_value = self._mock_context(tmp)
+                user_input = "\n".join([
+                    "pnr_innovus",
+                    "route",
+                    "route",
+                    "innovus -init $edp(script)",
+                    "{tee} $edp(step).log",
+                    "",
+                    "",
+                ])
+                result = self.runner.invoke(
+                    cli,
+                    ["--edp-center", tmpdir, "flowcreate"],
+                    input=user_input,
+                )
+
+            self.assertEqual(result.exit_code, 0, result.output)
+            step_yaml = (tmp / "flow_overlay" / "cmds" / "pnr_innovus" / "step.yaml").read_text(encoding="utf-8")
+            self.assertIn('invoke:', step_yaml)
+            self.assertIn('- innovus -init $edp(script)', step_yaml)
+            self.assertIn('- \'{tee} $edp(step).log\'', step_yaml)
+            self.assertIn("Current invoke (2 segment(s))", result.output)
+            self.assertIn("Joined command: innovus -init $edp(script) {tee} $edp(step).log", result.output)
+
+    def test_flowcreate_tool_selection_supports_numeric_choice(self):
+        from edp.cli import cli
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp = Path(tmpdir)
+            with patch.object(self.flow_module, "_resolve_context") as mock_ctx:
+                mock_ctx.return_value = self._mock_context(tmp)
+                user_input = "\n".join([
+                    "1",                            # tool: pnr_innovus
+                    "newstep",
+                    "newstep",
+                    "innovus -init $edp(script)",
+                    "",
+                    "",
+                ])
+                result = self.runner.invoke(
+                    cli,
+                    ["--edp-center", tmpdir, "flowcreate"],
+                    input=user_input,
+                )
+
+            self.assertEqual(result.exit_code, 0, result.output)
+            self.assertIn("Available tools:", result.output)
+            self.assertIn("[1] pnr_innovus", result.output)
+            self.assertIn("Tool: pnr_innovus", result.output)
+
+    def test_flowcreate_suggests_calibre_default_invoke_for_drc(self):
+        from edp.cli import cli
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp = Path(tmpdir)
+            with patch.object(self.flow_module, "_resolve_context") as mock_ctx:
+                mock_ctx.return_value = self._mock_context(tmp)
+                user_input = "\n".join([
+                    "drc",   # step
+                    "drc",   # sub-steps
+                    "",      # accept suggested first invoke segment
+                    "",      # finish invoke segments
+                    "",      # trailing newline
+                ])
+                result = self.runner.invoke(
+                    cli,
+                    [
+                        "--edp-center", tmpdir, "flowcreate",
+                        "--tool", "pv_calibre",
+                    ],
+                    input=user_input,
+                )
+
+            self.assertEqual(result.exit_code, 0, result.output)
+            self.assertIn("Invoke segment [calibre -drc -hier -turbo {cpu_num}]", result.output)
+            step_yaml = (tmp / "flow_overlay" / "cmds" / "pv_calibre" / "step.yaml").read_text(encoding="utf-8")
+            self.assertIn("- calibre -drc -hier -turbo {cpu_num}", step_yaml)
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

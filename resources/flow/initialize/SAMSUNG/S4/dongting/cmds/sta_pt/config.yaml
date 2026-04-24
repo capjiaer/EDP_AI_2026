@@ -3,3 +3,8 @@ sta_pt:
     lsf_mode: 0
     cpu_num: 1
     queue: normal
+    # hosts: "hostA hostB"     # -> bsub -m
+    # mem_limit: "8G"          # -> bsub -R
+    # wall_time: "2:00"        # -> bsub -W
+    # job_name: "sta_runpt"    # -> bsub -J
+    # extra_opts: "-P proj_x"  # passthrough bsub options

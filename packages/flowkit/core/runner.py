@@ -108,6 +108,8 @@ class LSFRunner(Runner):
                  memory: str = "",
                  wall_time: str = "",
                  extra_opts: str = "",
+                 job_name: str = "",
+                 hosts: str = "",
                  debug: bool = False):
         """
         Args:
@@ -116,12 +118,16 @@ class LSFRunner(Runner):
             memory: 内存限制（如 "8G"）
             wall_time: 最大运行时间（如 "4:00"）
             extra_opts: 额外 bsub 参数字符串
+            job_name: 自定义 job 名称（默认 step_name）
+            hosts: 主机约束，对应 bsub -m（如 "hostA hostB"）
         """
         self.queue = queue
         self.cpu_num = cpu_num
         self.memory = memory
         self.wall_time = wall_time
         self.extra_opts = extra_opts
+        self.job_name = job_name
+        self.hosts = hosts
         self.debug = debug
 
     def run(self, step_name: str, script_path: Path, workdir: Path) -> StepResult:
@@ -169,12 +175,15 @@ class LSFRunner(Runner):
     def _build_bsub_cmd(self, step_name: str, script_path: Path) -> list:
         """构建 bsub 命令"""
         mode_flag = "-Ip" if self.debug else "-K"
-        cmd = ["bsub", mode_flag, "-J", step_name]
+        effective_job_name = self.job_name or step_name
+        cmd = ["bsub", mode_flag, "-J", effective_job_name]
 
         if self.queue:
             cmd.extend(["-q", self.queue])
         if self.cpu_num > 1:
             cmd.extend(["-n", str(self.cpu_num)])
+        if self.hosts:
+            cmd.extend(["-m", self.hosts])
         if self.memory:
             cmd.extend(["-R", f"span[hosts=1] rusage[mem={self.memory}]"])
         if self.wall_time:
