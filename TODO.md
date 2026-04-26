@@ -1,6 +1,6 @@
 # EDP Rewrite - Current Status
 
-> Last updated: 2026-04-23
+> Last updated: 2026-04-26
 
 ## Recently Completed
 
@@ -21,19 +21,20 @@
 - Bash completion updated with `-debug/--debug` and `-info/--info`
 - Added csh/tcsh completion file: `completions/edp.csh`
 - `edp.csh` now loads completion cache and sources csh completion
+- Added Python-driven backtick completion for dynamic step/project/node data
 
 ### Flow tutor
 - Added `edp flow create` interactive scaffold command
 - Supports minimal skeleton generation (`step.yaml`, `config.yaml`, `steps/*.tcl`, `hooks/*`)
 - Added command tests and prompt examples for new flow owners
 
-## Remaining TODO
+### Script builder cleanup
+- Unified `tcl_packages` source logic (base/overlay) into `_source_block()` calls
+- Removed duplicate manual loop paths for tcl_packages sourcing
 
-### P1: Script builder cleanup
-- `tcl_packages` source logic (base/overlay) still has manual loop parts that can be unified with `_source_block()`
-- Goal: reduce duplicate code paths and keep source ordering comments consistent
+## Remaining
 
-### P2: Workspace artifact policy
+### Workspace artifact policy
 - Finalize which `try_new_edp` generated files should be tracked as examples
 - Add ignore rules for disposable run artifacts if needed
 
