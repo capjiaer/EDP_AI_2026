@@ -1,67 +1,62 @@
-# edp tcsh/csh completion -- Python-driven dynamic + hybrid static
+# edp tcsh/csh completion — dynamic data via $var, flag completion via n/<flag>/
 #
 # Prerequisites (handled by edp.csh before sourcing this file):
-#   1. EDP_ROOT/bin is in PATH (so edp_complete_helper.py is findable)
-#   2. EDP_ROOT is set (for the helper to find the cache)
+#   1. $_edp_projects, $_edp_nodes, $_edp_steps are set from cache
+#   2. EDP_ROOT is set
 #
-# Static lists use (...) for speed.  Dynamic values (steps, projects,
-# nodes) use backtick commands -- tcsh evaluates these at Tab-press time,
-# so the completion list is always fresh.
+# Design notes:
+#   - All rules use 2-part n/<prev>/(list)/ format to avoid tcsh's
+#     "Invalid completion" conflict (which triggers when the same word
+#     appears as both a completion value and a 3-part pattern trigger).
+#   - Dynamic values use $var list type (populated from cache at source
+#     time; steps/nodes/projects rarely change within a session).
 
 if (! $?EDP_ROOT) then
     exit
 endif
 
-# Clear old completion
 uncomplete edp >& /dev/null
-
-# ── Rules ordered: specific value patterns first, general flag patterns last.
-# ── Backtick commands contain NO slashes (avoids delimiter parsing bugs).
 
 complete edp \
   'p/1/(init run status retry graph doctor flowcreate tutor)/' \
   \
-  'n/init/-prj/`edp_complete_helper.py projects`/' \
-  'n/init/--project/`edp_complete_helper.py projects`/' \
-  'n/init/-n/`edp_complete_helper.py nodes`/' \
-  'n/init/--node/`edp_complete_helper.py nodes`/' \
-  'n/init/-ver/(P85 P95 P100)/' \
-  'n/init/--version/(P85 P95 P100)/' \
-  'n/init/-w/d/' \
-  'n/init/--work-path/d/' \
-  'n/init/-blk/d/' \
-  'n/init/--block/d/' \
   'n/init/(-prj --project -w --work-path -n --node -ver --version -blk --block -br --branch --link --no-link -h --help)/' \
+  'n/-prj/$_edp_projects/' \
+  'n/--project/$_edp_projects/' \
+  'n/-n/$_edp_nodes/' \
+  'n/--node/$_edp_nodes/' \
+  'n/-ver/(P85 P95 P100)/' \
+  'n/--version/(P85 P95 P100)/' \
+  'n/-w/d/' \
+  'n/--work-path/d/' \
+  'n/-blk/d/' \
+  'n/--block/d/' \
   \
-  'n/run/-fr/`edp_complete_helper.py steps`/' \
-  'n/run/--from/`edp_complete_helper.py steps`/' \
-  'n/run/-to/`edp_complete_helper.py steps`/' \
-  'n/run/--to/`edp_complete_helper.py steps`/' \
-  'n/run/-skip/`edp_complete_helper.py steps`/' \
-  'n/run/--skip/`edp_complete_helper.py steps`/' \
-  'n/run/`edp_complete_helper.py run_steps_and_flags`/' \
+  'n/run/(-fr --from -to --to -skip --skip -dr --dry-run --force -debug --debug -info --info -h --help)/' \
+  'n/-fr/$_edp_steps/' \
+  'n/--from/$_edp_steps/' \
+  'n/-to/$_edp_steps/' \
+  'n/--to/$_edp_steps/' \
+  'n/-skip/$_edp_steps/' \
+  'n/--skip/$_edp_steps/' \
   \
   'n/status/(-h --help)/' \
   \
-  'n/retry/-dr/(-h --help)/' \
-  'n/retry/--dry-run/(-h --help)/' \
-  'n/retry/retry/`edp_complete_helper.py steps`/' \
+  'n/retry/$_edp_steps/' \
   'n/retry/(-dr --dry-run -debug --debug -info --info -h --help)/' \
   \
-  'n/graph/-f/(ascii dot table)/' \
-  'n/graph/--format/(ascii dot table)/' \
-  'n/graph/-o/f/' \
-  'n/graph/--output/f/' \
   'n/graph/(-f --format -o --output -select --select -h --help)/' \
+  'n/-f/(ascii dot table)/' \
+  'n/--format/(ascii dot table)/' \
+  'n/-o/f/' \
+  'n/--output/f/' \
   \
   'n/doctor/(--strict --json -h --help)/' \
   \
-  'n/flowcreate/--tool/(pnr_innovus pv_calibre sta_pt)/' \
-  'n/flowcreate/--step/`edp_complete_helper.py steps`/' \
-  'n/flowcreate/--sub-steps/`edp_complete_helper.py steps`/' \
-  'n/flowcreate/--invoke/(innovus calibre pt_shell)/' \
   'n/flowcreate/(--tool --step --sub-steps --invoke -h --help)/' \
+  'n/--tool/(pnr_innovus pv_calibre sta_pt)/' \
+  'n/--step/$_edp_steps/' \
+  'n/--sub-steps/$_edp_steps/' \
+  'n/--invoke/(innovus calibre pt_shell)/' \
   \
-  'n/tutor/(quickstart model diagnose -h --help)/' \
-  \
-  'c/-*/(-fr --from -to --to -skip --skip -dr --dry-run --force -debug --debug -info --info --strict --json -prj --project -w --work-path -n --node -ver --version -blk --block -br --branch --link --no-link -f --format -o --output -select --select --tool --step --sub-steps --invoke -h --help)/'
+  'n/tutor/(quickstart model diagnose -h --help)/'
