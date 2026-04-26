@@ -1,9 +1,0 @@
-# Step-level post hook for pnr_innovus.init
-Runs after ALL sub_steps of init.
-# Fill in your code inside the proc body, or delete this file if not needed.
-
-proc init_step_post {} {
-    global edp pnr_innovus pv_calibre sta_pt
-
-    # Your code here
-}

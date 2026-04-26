@@ -1,0 +1,9 @@
+# Step-level pre hook for pv_calibre.drc
+Runs before ALL sub_steps of drc.
+# Fill in your code inside the proc body, or delete this file if not needed.
+
+proc drc_step_pre {} {
+    global edp pv_calibre pnr_innovus sta_pt
+
+    # Your code here
+}
