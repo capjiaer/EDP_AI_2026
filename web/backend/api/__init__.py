@@ -11,4 +11,4 @@ def init_app(app):
     from .projects import projects_bp
 
     for sub_bp in [graph_bp, status_bp, run_bp, projects_bp]:
-        app.register_blueprint(sub_bp)
+        app.register_blueprint(sub_bp, url_prefix='/api')
