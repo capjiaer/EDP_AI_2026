@@ -61,3 +61,8 @@ def create_app(edp_center=None):
             return send_from_directory(static, 'index.html')
 
     return app
+
+
+if __name__ == '__main__':
+    app = create_app()
+    socketio.run(app, host='0.0.0.0', port=5000, debug=False)

@@ -36,8 +36,8 @@
 - 增加 debug 场景可观测性（执行前调试提示 + `-info` 细节模式）
 - 统一文档和补全入口，降低团队上手成本
 
-## 剩余建议工作
+## 剩余工作
 
-- 对 `edp run` 增加端到端 CLI 集成测试
-- 清理 `script_builder` 中可合并的重复 source 逻辑
-- 持续优化 `try_new_edp` 产物的跟踪与忽略策略
+- 等 LSF 环境就绪后补 `edp run` 端到端 CLI 集成测试
+- `script_builder` 重复 source 逻辑已清理完毕
+- `try_new_edp` 产物不做特殊跟踪策略

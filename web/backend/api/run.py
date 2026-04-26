@@ -1,6 +1,17 @@
 from flask import Blueprint, jsonify, request, current_app
+from ..services.run_service import _emit_status
 
 run_bp = Blueprint('run', __name__)
+
+
+@run_bp.route('/test-status', methods=['POST'])
+def test_status():
+    """Simulate a step status change (for testing UI colors)."""
+    data = request.get_json(silent=True) or {}
+    step = data.get('step', 'init')
+    status = data.get('status', 'success')
+    _emit_status(step, status, f'Test: {status}')
+    return jsonify({'ok': True, 'step': step, 'status': status})
 
 
 @run_bp.route('/run/<step>', methods=['POST'])

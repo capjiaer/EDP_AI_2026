@@ -50,8 +50,7 @@
 
 上述定向回归已通过。
 
-## 下一步建议
+## 下一步
 
-- 增加 `edp run` 的 CLI 端到端测试
-- 继续收敛 `script_builder` 的重复 source 逻辑
-- 按团队习惯微调 `try_new_edp` 产物跟踪范围
+- 等 LSF 环境就绪后补 `edp run` 的 CLI 端到端测试
+- `try_new_edp` 产物不做特殊跟踪，gitignore 已覆盖

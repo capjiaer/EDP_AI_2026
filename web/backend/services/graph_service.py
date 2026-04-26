@@ -49,8 +49,12 @@ def _find_graph_configs(flow_base: Path, flow_overlay: Optional[Path]) -> List[P
 
 
 def load_graph_data(edp_center: Path, foundry: str, node: str,
-                    project: str) -> Dict[str, Any]:
+                    project: str, graph_config: str = '') -> Dict[str, Any]:
     """Load graph for a specific foundry/node/project.
+
+    Args:
+        graph_config: if specified, load only this config file.
+                      Otherwise load the first one found.
 
     Returns:
         {
@@ -65,11 +69,18 @@ def load_graph_data(edp_center: Path, foundry: str, node: str,
     flow_overlay = init_path / foundry / node / project
 
     tool_selection = _load_step_config(flow_base, flow_overlay)
-    graph_configs = _find_graph_configs(flow_base, flow_overlay)
+    all_configs = _find_graph_configs(flow_base, flow_overlay)
+
+    # Pick the requested config, or default to the first one
+    if graph_config:
+        selected = [c for c in all_configs if c.name == graph_config]
+        configs_to_load = selected if selected else all_configs[:1]
+    else:
+        configs_to_load = all_configs[:1] if all_configs else []
 
     loader = DependencyLoader()
-    if graph_configs:
-        graph = loader.load_from_multiple_files(graph_configs)
+    if configs_to_load:
+        graph = loader.load_from_multiple_files(configs_to_load)
     else:
         graph = loader.load_from_multiple_files([])
 
@@ -93,7 +104,7 @@ def load_graph_data(edp_center: Path, foundry: str, node: str,
         'nodes': nodes,
         'edges': edges,
         'graph_configs': [{'name': gc.name, 'path': str(gc)}
-                          for gc in graph_configs],
+                          for gc in all_configs],
         'tool_selection': tool_selection,
     }
 

@@ -34,9 +34,8 @@
 
 ## Remaining
 
-### Workspace artifact policy
-- Finalize which `try_new_edp` generated files should be tracked as examples
-- Add ignore rules for disposable run artifacts if needed
+### edp run 端到端测试
+- 等 LSF 环境就绪后再补 CLI 集成测试
 
 ## Completed Core Modules
 

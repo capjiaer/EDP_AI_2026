@@ -11,10 +11,6 @@ import { computed } from 'vue'
 const props = defineProps({
   id: String,
   data: Object,
-  status: {
-    type: String,
-    default: 'idle',
-  },
 })
 
 const emit = defineEmits(['run-step'])
@@ -27,7 +23,7 @@ const STATUS_CLASSES = {
   skipped: 'status-skipped',
 }
 
-const statusClass = computed(() => STATUS_CLASSES[props.status] || 'status-idle')
+const statusClass = computed(() => STATUS_CLASSES[props.data?.status] || 'status-idle')
 
 function handleClick() {
   emit('run-step', props.id)

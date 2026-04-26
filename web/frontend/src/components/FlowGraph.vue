@@ -43,6 +43,7 @@ const nodeTypes = {
 }
 
 const defaultEdgeOptions = {
+  type: 'smoothstep',
   animated: false,
   style: { stroke: '#999', strokeWidth: 2 },
 }
@@ -92,7 +93,7 @@ const nodes = computed(() => {
   const nodePositions = {}
   for (const [lvl, ids] of Object.entries(levelGroups)) {
     ids.forEach((id, i) => {
-      nodePositions[id] = { x: Number(lvl) * 220, y: i * 100 }
+      nodePositions[id] = { x: i * 180, y: Number(lvl) * 120 }
     })
   }
 
@@ -114,7 +115,8 @@ const edges = computed(() => {
     id: `${e.source}-${e.target}`,
     source: e.source,
     target: e.target,
-    style: e.weak ? { strokeDasharray: '5,5' } : {},
+    type: 'smoothstep',
+    style: e.weak ? { strokeDasharray: '5,5', stroke: '#bbb' } : {},
     animated: false,
   }))
 })
