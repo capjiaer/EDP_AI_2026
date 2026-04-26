@@ -39,6 +39,9 @@ endif
 "$_edp_python" "${EDP_ROOT}/bin/_gen_completion_cache.py" >& /dev/null
 unset _edp_python
 
+	set autolist
+	set listmaxrows=20
+
 # Load tcsh completion (cache → completion rules)
 if ( -f "${EDP_ROOT}/.edp_completion_cache.csh" ) then
     source "${EDP_ROOT}/.edp_completion_cache.csh"
