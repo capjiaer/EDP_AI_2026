@@ -24,11 +24,28 @@ pv_calibre:
     lsf_mode: 1
     cpu_num: 4
     queue: normal
+  # 工具级参数（用于 invoke 展开）
+  tee: "|& tee"  # 日志输出捕获
   drc:
     # SVRF path policy (pure data, no Tcl expression in YAML):
     # Final path = svrf_dir/svrf_name, relative to current run directory.
     svrf_dir: "."
     svrf_name: "drc.svrf"
+    cpu_num: 8   # calibre -turbo 线程数（工具内部并行，非 LSF slots）
     lsf:
       cpu_num: 16
       queue: verify
+  lvs:
+    cpu_num: 8
+    lsf:
+      cpu_num: 4
+      queue: verify
+  perc:
+    cpu_num: 8
+    lsf:
+      cpu_num: 4
+      queue: verify
+  ipmerge:
+    cpu_num: 4
+  dummy:
+    cpu_num: 4

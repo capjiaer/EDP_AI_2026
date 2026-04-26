@@ -6,4 +6,5 @@ __pycache__/
 dist/
 build/
 .edp_completion_cache
+.edp_completion_cache.csh
 .opencode/

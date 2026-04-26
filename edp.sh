@@ -21,7 +21,7 @@ if [[ ! -x "${EDP_ROOT}/bin/edp" ]]; then
 EDP_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 export EDP_ROOT
 export PYTHONPATH="${EDP_ROOT}/packages${PYTHONPATH:+:$PYTHONPATH}"
-exec "${PYTHON:-python}" -m edp "$@"
+exec "${PYTHON:-python3}" -m edp "$@"
 WRAPPER
     chmod +x "${EDP_ROOT}/bin/edp"
 fi
@@ -32,3 +32,12 @@ fi
 # Tab completion (pure bash, reads from cache file)
 complete -r edp 2>/dev/null
 source "${EDP_ROOT}/completions/edp.bash" 2>/dev/null
+
+# ls color support and useful aliases
+alias ls='ls --color=auto'
+alias ll='ls -l --color=auto'
+alias la='ls -a --color=auto'
+alias lla='ls -la --color=auto'
+alias lt='ls -lt --color=auto'
+alias ltr='ls -ltr --color=auto'
+alias l='ls -CF --color=auto'

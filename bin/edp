@@ -1,4 +1,6 @@
 #!/bin/bash
+# EDP wrapper script - now using Python
 EDP_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+export EDP_ROOT
 export PYTHONPATH="${EDP_ROOT}/packages${PYTHONPATH:+:$PYTHONPATH}"
-exec "${PYTHON:-python}" -m edp "$@"
+exec "${PYTHON:-python3}" "${EDP_ROOT}/bin/edp_cli.py" "$@"

@@ -82,6 +82,18 @@ def _resolve_context(ctx) -> dict:
             "  Or set EDP_CENTER / --edp-center to the correct path."
         )
 
+    # branch_path 只在 block/user/branch 三级路径下才存在
+    if 'branch_path' not in info:
+        hint = ""
+        if 'block_name' in info:
+            hint = f"\n  Detected block: '{info['block_name']}'\n  Please navigate to: block/user/branch"
+        raise click.ClickException(
+            f"Not in a valid branch directory.\n"
+            f"  Current: {cwd}\n"
+            f"  Expected path structure: work_path/project/version/block/user/branch\n"
+            f"{hint}"
+        )
+
     # 2. Flow 路径
     flow_base = init_path / info['foundry'] / info['node'] / 'common_prj'
     flow_overlay = init_path / info['foundry'] / info['node'] / info['project_name']
