@@ -8,3 +8,16 @@ build/
 .edp_completion_cache
 .edp_completion_cache.csh
 .opencode/
+
+# Dependencies
+web/venv/
+web/.venv/
+web/frontend/node_modules/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
