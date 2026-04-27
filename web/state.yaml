@@ -1,0 +1,24 @@
+cts:
+  execution_time: 0.002008199691772461
+  status: finished
+dummy:
+  execution_time: 0.0020363330841064453
+  status: finished
+floorplan:
+  execution_time: 0.0027649402618408203
+  status: finished
+init:
+  execution_time: 0.002062559127807617
+  status: finished
+ipmerge:
+  execution_time: 0.0020008087158203125
+  status: finished
+place:
+  execution_time: 0.0019774436950683594
+  status: finished
+postroute:
+  execution_time: 0.0020592212677001953
+  status: finished
+route:
+  execution_time: 0.001980304718017578
+  status: finished
