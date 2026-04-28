@@ -20,7 +20,7 @@ from edp.context import _resolve_context, _pick_graph_config
 @click.option('-o', '--output', type=click.Path(), default=None,
                help='Output file (default: stdout)')
 @click.option('-select', '--select', 'force_select', is_flag=True, default=False,
-              help='Force re-select graph config and overwrite .graph_config')
+              help='Force re-select graph config')
 @click.pass_context
 def graph_cmd(ctx, fmt, output, force_select):
     """Visualize dependency graph."""

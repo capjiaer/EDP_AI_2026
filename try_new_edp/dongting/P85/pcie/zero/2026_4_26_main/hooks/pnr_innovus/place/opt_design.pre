@@ -1,9 +1,0 @@
-# Pre hook for sub_step 'opt_design' in pnr_innovus.place
-Runs before opt_design().
-# Fill in your code inside the proc body, or delete this file if not needed.
-
-proc place_opt_design_pre {} {
-    global edp pv_calibre pnr_innovus sta_pt
-
-    # Your code here
-}

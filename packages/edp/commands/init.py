@@ -12,6 +12,7 @@ import click
 
 from dirkit import WorkPathInitializer, get_current_user
 from edp.completions import _complete_projects
+from edp.context import _find_graph_configs
 
 
 @click.command()
@@ -151,6 +152,27 @@ def init(ctx, project, project_version, block, user_name, branch, link):
         )
     foundry, node = _resolve_foundry_node(wp_init, project, matches)
 
+    # 查找 graph configs 并选择
+    flow_base = wp_init.initialize_path / foundry / node / 'common_prj'
+    flow_overlay = wp_init.initialize_path / foundry / node / project
+    graph_configs = _find_graph_configs(flow_base, flow_overlay)
+
+    selected_graph = None
+    if len(graph_configs) == 1:
+        selected_graph = graph_configs[0].name
+    elif len(graph_configs) > 1:
+        click.echo("Multiple graph configs found, please select one:")
+        for i, f in enumerate(graph_configs, 1):
+            click.echo(f"  [{i}] {f.name}")
+        while True:
+            choice = click.prompt("Enter number", type=int)
+            if 1 <= choice <= len(graph_configs):
+                selected_graph = graph_configs[choice - 1].name
+                break
+            click.echo(f"Invalid choice. Please enter 1-{len(graph_configs)}.")
+    click.echo(f"  Graph:   {selected_graph}" if selected_graph else
+               "  Graph:   (no graph_config found)")
+
     work_path = str(Path.cwd())
 
     wp_init.init_project(
@@ -160,6 +182,7 @@ def init(ctx, project, project_version, block, user_name, branch, link):
         blocks=[],
         foundry=foundry,
         node=node,
+        graph_config=selected_graph,
     )
 
     proj_path = Path(work_path) / project / project_version

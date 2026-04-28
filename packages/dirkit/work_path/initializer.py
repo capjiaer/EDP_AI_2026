@@ -95,7 +95,8 @@ class WorkPathInitializer:
 
     def _create_or_update_version(self, project_path: Path,
                                   project_name: str, project_node: str,
-                                  foundry: str, node: str, blocks: List[str]) -> None:
+                                  foundry: str, node: str, blocks: List[str],
+                                  graph_config: Optional[str] = None) -> None:
         """创建或更新 .edp_version 文件"""
         import getpass
         now = datetime.now().isoformat()
@@ -121,6 +122,9 @@ class WorkPathInitializer:
                 'created_by': user,
                 'blocks': {},
             }
+
+        if graph_config:
+            info['graph_config'] = graph_config
 
         for block_name in blocks:
             if block_name not in info['blocks']:
@@ -174,6 +178,66 @@ class WorkPathInitializer:
                           allow_unicode=True, sort_keys=False)
         except Exception:
             pass
+
+    def save_graph_config_choice(self, project_path: Path, block_name: str,
+                                  user_name: str, branch_name: str,
+                                  graph_config: str) -> None:
+        """在 .edp_version 中记录 graph config 选择"""
+        version_file = project_path / '.edp_version'
+        if not version_file.exists():
+            return
+
+        try:
+            with open(version_file, 'r', encoding='utf-8') as f:
+                info = yaml.safe_load(f) or {}
+        except Exception:
+            return
+
+        branches = (
+            info.get('blocks', {})
+            .get(block_name, {})
+            .get('users', {})
+            .get(user_name, {})
+            .get('branches', {})
+        )
+        if branch_name in branches:
+            branches[branch_name]['graph_config'] = graph_config
+        else:
+            branches[branch_name] = {
+                'graph_config': graph_config,
+                'created_at': datetime.now().isoformat(),
+            }
+
+        try:
+            with open(version_file, 'w', encoding='utf-8') as f:
+                yaml.dump(info, f, default_flow_style=False,
+                          allow_unicode=True, sort_keys=False)
+        except Exception:
+            pass
+
+    @staticmethod
+    def load_graph_config_choice(project_path: Path, block_name: str,
+                                  user_name: str, branch_name: str) -> Optional[str]:
+        """从 .edp_version 中读取 graph config 选择"""
+        version_file = project_path / '.edp_version'
+        if not version_file.exists():
+            return None
+
+        try:
+            with open(version_file, 'r', encoding='utf-8') as f:
+                info = yaml.safe_load(f) or {}
+        except Exception:
+            return None
+
+        return (
+            info.get('blocks', {})
+            .get(block_name, {})
+            .get('users', {})
+            .get(user_name, {})
+            .get('branches', {})
+            .get(branch_name, {})
+            .get('graph_config')
+        )
 
     # --- 分支结构 ---
 
@@ -300,7 +364,8 @@ class WorkPathInitializer:
                      project_node: str,
                      blocks: Optional[List[str]] = None,
                      foundry: Optional[str] = None,
-                     node: Optional[str] = None) -> Dict[str, Path]:
+                     node: Optional[str] = None,
+                     graph_config: Optional[str] = None) -> Dict[str, Path]:
         """
         初始化项目结构到 WORK_PATH 下
 
@@ -331,7 +396,8 @@ class WorkPathInitializer:
 
         # 版本信息
         self._create_or_update_version(
-            project_path, project_name, project_node, foundry, node, blocks
+            project_path, project_name, project_node, foundry, node, blocks,
+            graph_config=graph_config
         )
 
         # 创建 blocks

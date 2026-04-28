@@ -1,9 +1,0 @@
-# Pre hook for sub_step 'global_place' in pnr_innovus.place
-Runs before global_place().
-# Fill in your code inside the proc body, or delete this file if not needed.
-
-proc place_global_place_pre {} {
-    global edp pv_calibre pnr_innovus sta_pt
-
-    # Your code here
-}

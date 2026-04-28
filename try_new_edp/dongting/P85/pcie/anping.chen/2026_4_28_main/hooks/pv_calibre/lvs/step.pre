@@ -1,0 +1,9 @@
+# Step-level pre hook for pv_calibre.lvs
+Runs before ALL sub_steps of lvs.
+# Fill in your code inside the proc body, or delete this file if not needed.
+
+proc lvs_step_pre {} {
+    global edp pnr_innovus pv_calibre sta_pt
+
+    # Your code here
+}

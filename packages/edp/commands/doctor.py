@@ -199,7 +199,7 @@ def doctor(ctx, strict, json_mode):
                     results,
                     "WARN",
                     "graph_selection",
-                    "multiple graph configs found but .graph_config is not selected",
+                    "multiple graph configs found but graph is not selected in .edp_version",
                 )
 
         # ── flow 结构有效性 ──
@@ -221,7 +221,7 @@ def doctor(ctx, strict, json_mode):
                         f"state graph ({saved_graph}) mismatches selected graph ({selected_graph.name})",
                     )
             else:
-                _record(results, "WARN", "state_graph", "state.yaml has no graph marker (_graph_config)")
+                _record(results, "WARN", "state_graph", "state.yaml has no graph marker (_graph_config) in .edp_version")
         else:
             _record(results, "WARN", "state_file", "state.yaml not found (no execution history yet)")
 

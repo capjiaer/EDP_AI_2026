@@ -1,6 +1,6 @@
 # EDP AI 2026 — EDA Flow Framework Rewrite
 
-> Last updated: 2026-04-23
+> Last updated: 2026-04-28
 
 ## Overview
 
@@ -51,6 +51,19 @@ new_edp/
 │       └── initialize/{foundry}/{node}/
 │           ├── common_prj/         # base flow（通用）
 │           └── {project}/          # overlay flow（项目级覆盖）
+├── web/                             # Web UI（Flask + Vue 3）
+│   ├── backend/                     #   Flask API & WebSocket 服务
+│   │   ├── api/                     #     REST 端点（graph/status/run/projects）
+│   │   └── services/                #     业务逻辑（graph_service/run_service）
+│   ├── frontend/                    #   Vue 3 前端（Vite + Vue Flow + Element Plus）
+│   │   └── src/components/          #     FlowGraph / StepNode / TopNav / SidePanel / StatusBar
+│   ├── cmds/                        #   命令模板（pnr_innovus / pv_calibre）
+│   ├── Dockerfile                   #   多阶段构建（Node.js 前端 + Python 后端）
+│   └── docker-compose.yml           #   单容器部署
+├── docs/                            # 设计文档与规划
+│   └── superpowers/
+│       ├── plans/                   #   实施计划
+│       └── specs/                   #   技术规格
 ├── bin/edp                          # CLI 入口脚本
 ├── edp.sh / edp.csh                 # 环境设置脚本
 └── completions/                     # Tab 补全
@@ -153,6 +166,43 @@ edp run [step] [options]                  # 执行
 - Csh/Tcsh: `source edp.csh`，加载 `completions/edp.csh`
 - 两套补全都支持 `run` 关键参数（`-debug/--debug`, `-info/--info`, `-fr/-to/-skip`）
 
+## Web UI
+
+基于 Flask + Vue 3 的可视化界面，支持实时状态推送与交互式操作。
+
+### 架构
+
+```text
+浏览器 ←── WebSocket ──→ Flask-SocketIO
+   │                        │
+   ├─ FlowGraph.vue         ├─ api/graph.py      # 依赖图数据
+   ├─ StepNode.vue          ├─ api/status.py     # 步骤状态查询
+   ├─ SidePanel.vue         ├─ api/run.py        # 触发执行
+   ├─ TopNav.vue            ├─ api/projects.py   # 项目层级
+   └─ StatusBar.vue         └─ services/         # flowkit 封装
+```
+
+### 功能
+
+| 功能 | 说明 |
+| ---- | ---- |
+| DAG 可视化 | Vue Flow 绘制步骤依赖图，5 色状态标识 |
+| 点击执行 | 点击节点触发 `edp run <step>` |
+| 实时状态 | WebSocket 推送步骤执行进度 |
+| 项目选择 | TopNav 下拉选择 foundry/node/project |
+| 详情面板 | SidePanel 展示步骤配置与日志 |
+
+### 部署
+
+```bash
+# 开发模式
+cd web/frontend && npm install && npm run dev   # 前端 :5173
+cd web/backend && pip install -r requirements.txt && python app.py  # 后端 :5000
+
+# Docker 一键部署
+cd web && docker-compose up --build
+```
+
 ## Development Validation
 
 建议在改动 `edp run` 相关逻辑后执行以下最小回归：
@@ -178,7 +228,7 @@ PYTHONPATH=packages python -m unittest \
 ## Development Status
 
 | Module | Status |
-|--------|--------|
+| ------ | ------ |
 | configkit (files2tcl, override tracking) | Done |
 | cmdkit (script_builder, debug script) | Done |
 | dirkit (init, hook templates) | Done |
@@ -187,5 +237,6 @@ PYTHONPATH=packages python -m unittest \
 | edp run -debug/--debug | Done |
 | edp run -info/--info | Done |
 | bash/csh completion | Done |
+| web ui phase 1 (DAG / WebSocket / 点击执行 / Docker 部署) | Done |
 
 See [TODO.md](TODO.md) for remaining issues.

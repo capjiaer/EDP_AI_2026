@@ -127,7 +127,7 @@ def _resolve_context(ctx) -> dict:
 
 def _pick_graph_config(graph_configs: List[Path], branch_path: Path,
                        force_select: bool = False) -> Path:
-    """选择 graph config。优先读取已保存的选择，否则提示用户选并保存。"""
+    """选择 graph config。优先读取 .edp_version 中已保存的选择，否则提示用户选并保存。"""
     # 只有一张图直接返回
     if len(graph_configs) == 1:
         selected = graph_configs[0]
@@ -154,23 +154,90 @@ def _pick_graph_config(graph_configs: List[Path], branch_path: Path,
         click.echo(f"Invalid choice. Please enter 1-{len(graph_configs)}.")
 
 
-_GRAPH_CONFIG_FILE = '.graph_config'
-
-
 def _load_graph_config_choice(branch_path: Path, graph_configs: List[Path]) -> Optional[Path]:
-    """读取已保存的 graph config 选择"""
-    choice_file = branch_path / _GRAPH_CONFIG_FILE
-    if not choice_file.exists():
+    """从 .edp_version 读取 graph config 选择（先查 branch 级，再查 project 级）"""
+    saved_name = _read_graph_from_version(branch_path)
+    if not saved_name:
         return None
-    saved_name = choice_file.read_text(encoding='utf-8').strip()
     for f in graph_configs:
         if f.name == saved_name:
             return f
     return None
 
 
+def _read_graph_from_version(branch_path: Path) -> Optional[str]:
+    """从 .edp_version 读取 graph_config 字段。
+    先查 branch 级（用户自己的选择），再查 project 级（PM 的默认选择）。"""
+    # 向上查找 .edp_version
+    version_file = None
+    project_path = None
+    for parent in [branch_path] + list(branch_path.parents):
+        vf = parent / '.edp_version'
+        if vf.exists():
+            version_file = vf
+            project_path = parent
+            break
+    if not version_file:
+        return None
+
+    try:
+        with open(version_file, 'r', encoding='utf-8') as f:
+            info = yaml.safe_load(f) or {}
+    except Exception:
+        return None
+
+    # 尝试从 branch 路径推断 block/user/branch
+    rel = branch_path.relative_to(project_path)
+    parts = rel.parts  # (block, user, branch)
+    if len(parts) >= 3:
+        block, user, branch = parts[0], parts[1], parts[2]
+        branch_graph = (
+            info.get('blocks', {})
+            .get(block, {})
+            .get('users', {})
+            .get(user, {})
+            .get('branches', {})
+            .get(branch, {})
+            .get('graph_config')
+        )
+        if branch_graph:
+            return branch_graph
+
+    # 回退到 project 级
+    return info.get('graph_config')
+
+
 def _save_graph_config_choice(branch_path: Path, graph_config: Path) -> None:
-    """保存 graph config 选择"""
-    branch_path.mkdir(parents=True, exist_ok=True)
-    choice_file = branch_path / _GRAPH_CONFIG_FILE
-    choice_file.write_text(graph_config.name, encoding='utf-8')
+    """保存 graph config 选择到 .edp_version（branch 级）"""
+    # 向上查找 .edp_version
+    for parent in [branch_path] + list(branch_path.parents):
+        vf = parent / '.edp_version'
+        if vf.exists():
+            version_file = vf
+            project_path = parent
+            break
+    else:
+        return
+
+    try:
+        with open(version_file, 'r', encoding='utf-8') as f:
+            info = yaml.safe_load(f) or {}
+    except Exception:
+        return
+
+    rel = branch_path.relative_to(project_path)
+    parts = rel.parts
+    if len(parts) >= 3:
+        block, user, branch = parts[0], parts[1], parts[2]
+        info.setdefault('blocks', {}).setdefault(block, {}).setdefault('users', {}).setdefault(user, {}).setdefault('branches', {})[branch] = info.get('blocks', {}).get(block, {}).get('users', {}).get(user, {}).get('branches', {}).get(branch, {})
+        br_info = info['blocks'][block]['users'][user]['branches'][branch]
+        if not isinstance(br_info, dict):
+            br_info = {}
+        br_info['graph_config'] = graph_config.name
+
+        try:
+            with open(version_file, 'w', encoding='utf-8') as f:
+                yaml.dump(info, f, default_flow_style=False,
+                          allow_unicode=True, sort_keys=False)
+        except Exception:
+            pass
