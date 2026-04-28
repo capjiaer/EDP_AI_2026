@@ -1,5 +1,5 @@
 <template>
-  <div class="app-container">
+  <div class="app-container" @click="closeContextMenu">
     <TopNav
       :foundry="foundry"
       :node="node"
@@ -15,14 +15,26 @@
           :graph-data="graphData"
           :step-statuses="stepStatuses"
           @run-step="handleRunStep"
+          @node-contextmenu="handleContextMenu"
         />
       </div>
       <SidePanel
         :step="selectedStep"
         :status="selectedStep ? stepStatuses[selectedStep] : ''"
+        :tool-name="selectedToolName"
+        :step-detail="stepDetail"
       />
     </div>
     <StatusBar :ws-status="wsStatus" :running-count="runningCount" />
+    <ContextMenu
+      :visible="contextMenu.visible"
+      :x="contextMenu.x"
+      :y="contextMenu.y"
+      :step-id="contextMenu.stepId"
+      @close="closeContextMenu"
+      @run="handleRunStep"
+      @details="showDetails"
+    />
   </div>
 </template>
 
@@ -33,6 +45,7 @@ import FlowGraph from './components/FlowGraph.vue'
 import TopNav from './components/TopNav.vue'
 import SidePanel from './components/SidePanel.vue'
 import StatusBar from './components/StatusBar.vue'
+import ContextMenu from './components/ContextMenu.vue'
 
 const foundry = ref('')
 const node = ref('')
@@ -42,10 +55,18 @@ const graphData = ref({ nodes: [], edges: [] })
 const stepStatuses = ref({})
 const wsStatus = ref('disconnected')
 const selectedStep = ref('')
+const stepDetail = ref(null)
 let socket = null
+
+const contextMenu = ref({ visible: false, x: 0, y: 0, stepId: '' })
 
 const runningCount = computed(() => {
   return Object.values(stepStatuses.value).filter(s => s === 'running').length
+})
+
+const selectedToolName = computed(() => {
+  if (!selectedStep.value) return ''
+  return (graphData.value.nodes.find(n => n.id === selectedStep.value) || {}).tool || ''
 })
 
 watch([foundry, node, project], async () => {
@@ -71,6 +92,7 @@ async function loadGraph() {
 
 async function handleRunStep(stepId) {
   selectedStep.value = stepId
+  showDetails(stepId)
   stepStatuses.value = { ...stepStatuses.value, [stepId]: 'running' }
   await fetch(`/api/run/${stepId}`, {
     method: 'POST',
@@ -81,6 +103,33 @@ async function handleRunStep(stepId) {
       project: project.value,
     }),
   })
+}
+
+async function showDetails(stepId) {
+  selectedStep.value = stepId
+  stepDetail.value = null
+  try {
+    const params = new URLSearchParams({
+      foundry: foundry.value,
+      node: node.value,
+      project: project.value,
+      step: stepId,
+    })
+    const res = await fetch(`/api/step-detail?${params}`)
+    if (res.ok) {
+      stepDetail.value = await res.json()
+    }
+  } catch (e) {
+    // ignore
+  }
+}
+
+function handleContextMenu({ stepId, x, y }) {
+  contextMenu.value = { visible: true, x, y, stepId }
+}
+
+function closeContextMenu() {
+  contextMenu.value = { ...contextMenu.value, visible: false }
 }
 
 onMounted(async () => {

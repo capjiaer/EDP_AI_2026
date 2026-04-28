@@ -4,48 +4,7 @@ from typing import Dict, List, Optional, Any
 from flowkit.loader.dependency_loader import DependencyLoader
 from flowkit.core.step import StepStatus
 
-
-def _load_step_config(flow_base: Path, flow_overlay: Optional[Path]) -> Dict[str, str]:
-    """Load step_config.yaml -> {step: tool} dict."""
-    import yaml
-
-    config_path = None
-    if flow_overlay and flow_overlay.exists():
-        p = flow_overlay / 'step_config.yaml'
-        if p.exists():
-            config_path = p
-    if not config_path:
-        p = flow_base / 'step_config.yaml'
-        if p.exists():
-            config_path = p
-    if not config_path:
-        return {}
-
-    with open(config_path, 'r', encoding='utf-8') as f:
-        data = yaml.safe_load(f)
-    if not data or 'steps' not in data:
-        return {}
-
-    tool_selection = {}
-    for entry in data['steps']:
-        if '.' in str(entry):
-            tool, step = str(entry).rsplit('.', 1)
-            tool_selection[step] = tool
-        else:
-            tool_selection[str(entry)] = str(entry)
-    return tool_selection
-
-
-def _find_graph_configs(flow_base: Path, flow_overlay: Optional[Path]) -> List[Path]:
-    """Find all graph_config*.yaml files."""
-    files = {}
-    if flow_base.exists():
-        for f in sorted(flow_base.glob('graph_config*.yaml')):
-            files[f.name] = f
-    if flow_overlay and flow_overlay.exists():
-        for f in sorted(flow_overlay.glob('graph_config*.yaml')):
-            files[f.name] = f
-    return sorted(files.values())
+from edp.context import _load_step_config, _find_graph_configs
 
 
 def load_graph_data(edp_center: Path, foundry: str, node: str,

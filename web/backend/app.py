@@ -63,6 +63,12 @@ def create_app(edp_center=None):
     return app
 
 
+def start_server(edp_center=None, host='127.0.0.1', port=5000, debug=False):
+    """Start the EDP web server."""
+    app = create_app(edp_center=edp_center)
+    socketio.run(app, host=host, port=port, debug=debug)
+    return app
+
+
 if __name__ == '__main__':
-    app = create_app()
-    socketio.run(app, host='0.0.0.0', port=5000, debug=False)
+    start_server(host='0.0.0.0', port=5000)

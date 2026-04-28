@@ -1,5 +1,11 @@
 <template>
-  <div class="step-node" :class="statusClass" @click="handleClick">
+  <div
+    class="step-node"
+    :class="statusClass"
+    :data-step-id="id"
+    @click="handleClick"
+    @contextmenu.prevent
+  >
     <div class="step-label">{{ data.label }}</div>
     <div v-if="data.tool" class="step-tool">{{ data.tool }}</div>
   </div>

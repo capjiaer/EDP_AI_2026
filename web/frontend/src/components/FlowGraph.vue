@@ -1,10 +1,13 @@
 <template>
-  <div class="flow-graph">
+  <div class="flow-graph" @contextmenu.prevent="onContainerContextMenu">
     <VueFlow
       :nodes="nodes"
       :edges="edges"
       :node-types="nodeTypes"
       :default-edge-options="defaultEdgeOptions"
+      :nodes-draggable="false"
+      :nodes-connectable="false"
+      :edges-updatable="false"
       fit-view-on-init
       @node-click="onNodeClick"
     >
@@ -36,7 +39,7 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(['run-step'])
+const emit = defineEmits(['run-step', 'node-contextmenu'])
 
 const nodeTypes = {
   step: markRaw(StepNode),
@@ -123,6 +126,15 @@ const edges = computed(() => {
 
 function onNodeClick(event) {
   emit('run-step', event.node.id)
+}
+
+function onContainerContextMenu(e) {
+  const nodeEl = e.target.closest('[data-step-id]')
+  if (!nodeEl) return
+  const stepId = nodeEl.getAttribute('data-step-id')
+  if (stepId) {
+    emit('node-contextmenu', { stepId, x: e.clientX, y: e.clientY })
+  }
 }
 </script>
 
