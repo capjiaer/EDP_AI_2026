@@ -70,8 +70,7 @@ def gui(ctx, port, host, debug):
             click.echo("You can still use `npm run dev` on another terminal for hot-reload.")
         click.echo()
 
-    from backend.app import create_app
-    from backend import socketio
+    from backend.app import create_app, socketio
 
     app = create_app(edp_center=edp_center)
 
