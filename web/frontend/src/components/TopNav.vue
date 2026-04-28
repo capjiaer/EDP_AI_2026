@@ -1,16 +1,19 @@
 <template>
   <div class="top-nav">
     <div class="nav-title">EDP Web UI</div>
-    <div class="nav-selects">
-      <el-select v-model="localFoundry" placeholder="Foundry" size="small" style="width: 140px">
-        <el-option v-for="f in projects" :key="f.foundry" :label="f.foundry" :value="f.foundry" />
-      </el-select>
-      <el-select v-model="localNode" placeholder="Node" size="small" style="width: 120px">
-        <el-option v-for="n in currentNodes" :key="n.node" :label="n.node" :value="n.node" />
-      </el-select>
-      <el-select v-model="localProject" placeholder="Project" size="small" style="width: 140px">
-        <el-option v-for="p in currentProjects" :key="p" :label="p" :value="p" />
-      </el-select>
+    <div class="nav-actions">
+      <div class="nav-selects">
+        <el-select v-model="localFoundry" placeholder="Foundry" size="small" style="width: 140px">
+          <el-option v-for="f in projects" :key="f.foundry" :label="f.foundry" :value="f.foundry" />
+        </el-select>
+        <el-select v-model="localNode" placeholder="Node" size="small" style="width: 120px">
+          <el-option v-for="n in currentNodes" :key="n.node" :label="n.node" :value="n.node" />
+        </el-select>
+        <el-select v-model="localProject" placeholder="Project" size="small" style="width: 140px">
+          <el-option v-for="p in currentProjects" :key="p" :label="p" :value="p" />
+        </el-select>
+      </div>
+      <el-button type="primary" size="small" @click="$emit('open-init')">Init</el-button>
     </div>
   </div>
 </template>
@@ -26,7 +29,7 @@ const props = defineProps({
 })
 
 const emit = defineEmits([
-  'update:foundry', 'update:node', 'update:project',
+  'update:foundry', 'update:node', 'update:project', 'open-init',
 ])
 
 const localFoundry = computed({
@@ -70,6 +73,11 @@ const currentProjects = computed(() => {
 }
 .nav-selects {
   display: flex;
+  gap: 12px;
+}
+.nav-actions {
+  display: flex;
+  align-items: center;
   gap: 12px;
 }
 </style>

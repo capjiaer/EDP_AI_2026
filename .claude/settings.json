@@ -13,7 +13,9 @@
       "Bash(python -m json.tool)",
       "Bash(curl -s \"http://localhost:5000/api/step-detail?foundry=SAMSUNG&node=S4&project=dongting&step=floorplan\")",
       "Bash(curl -s \"http://localhost:5000/api/file-content?path=C%3A%5CUsers%5Canping.chen%5CDesktop%5CEDP_2026%5Cresources%5Cflow%5Cinitialize%5CSAMSUNG%5CS4%5Ccommon_prj%5Ccmds%5Cpnr_innovus%5Csteps%5Cplace%5Cglobal_place.tcl\")",
-      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(d['content'][:200]\\)\")"
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(d['content'][:200]\\)\")",
+      "Bash(npx vite *)",
+      "Bash(git commit -m ' *)"
     ]
   }
 }

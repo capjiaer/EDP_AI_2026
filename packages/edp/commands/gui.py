@@ -5,6 +5,7 @@
 edp.commands.gui - Launch EDP Web UI
 """
 
+import subprocess
 import sys
 import webbrowser
 import threading
@@ -32,11 +33,41 @@ def gui(ctx, port, host, debug):
     if str(web_dir) not in sys.path:
         sys.path.insert(0, str(web_dir))
 
-    # Check if frontend is built
+    # Auto-build frontend if needed
     static_dir = web_dir / 'frontend' / 'dist'
     if not static_dir.exists():
-        click.echo("Warning: Frontend not built. Run: cd web/frontend && npm run build")
-        click.echo("  (You can still use `npm run dev` on another terminal for hot-reload)")
+        frontend_dir = web_dir / 'frontend'
+        click.echo("Frontend dist/ not found, building...")
+
+        # Auto-install if node_modules missing
+        if not (frontend_dir / 'node_modules').exists():
+            click.echo("  node_modules/ not found, running npm install...")
+            result = subprocess.run(
+                ['npm', 'install'],
+                cwd=str(frontend_dir),
+                capture_output=True, text=True
+            )
+            if result.returncode != 0:
+                click.echo("  npm install failed:")
+                click.echo(result.stderr)
+                click.echo()
+                click.echo("You can still run `npm install && npm run build` manually later.")
+            else:
+                click.echo("  npm install done.")
+
+        click.echo("  Running npm run build...")
+        result = subprocess.run(
+            ['npm', 'run', 'build'],
+            cwd=str(frontend_dir),
+            capture_output=True, text=True
+        )
+        if result.returncode == 0:
+            click.echo("  Frontend build complete.")
+        else:
+            click.echo("  Frontend build failed:")
+            click.echo(result.stderr)
+            click.echo()
+            click.echo("You can still use `npm run dev` on another terminal for hot-reload.")
         click.echo()
 
     from backend.app import create_app

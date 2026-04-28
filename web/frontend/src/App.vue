@@ -8,6 +8,7 @@
       @update:foundry="foundry = $event"
       @update:node="node = $event"
       @update:project="project = $event"
+      @open-init="initWizardVisible = true"
     />
     <div class="main-content">
       <div class="graph-area">
@@ -35,6 +36,11 @@
       @run="handleRunStep"
       @details="showDetails"
     />
+    <InitWizardDialog
+      v-model:visible="initWizardVisible"
+      :projects="projects"
+      @init-complete="onInitComplete"
+    />
   </div>
 </template>
 
@@ -46,6 +52,7 @@ import TopNav from './components/TopNav.vue'
 import SidePanel from './components/SidePanel.vue'
 import StatusBar from './components/StatusBar.vue'
 import ContextMenu from './components/ContextMenu.vue'
+import InitWizardDialog from './components/InitWizardDialog.vue'
 
 const foundry = ref('')
 const node = ref('')
@@ -59,6 +66,12 @@ const stepDetail = ref(null)
 let socket = null
 
 const contextMenu = ref({ visible: false, x: 0, y: 0, stepId: '' })
+const initWizardVisible = ref(false)
+
+function onInitComplete() {
+  initWizardVisible.value = false
+  loadGraph()
+}
 
 const runningCount = computed(() => {
   return Object.values(stepStatuses.value).filter(s => s === 'running').length
