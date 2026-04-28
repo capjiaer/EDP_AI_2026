@@ -240,3 +240,6 @@ PYTHONPATH=packages python -m unittest \
 | web ui phase 1 (DAG / WebSocket / 点击执行 / Docker 部署) | Done |
 
 See [TODO.md](TODO.md) for remaining issues.
+20260428:
+  在更新了packages/edp/cli.py 后额度不够了，需要等额度刷新继续，现在在做edp gui 
+  看看哪些还没做完
