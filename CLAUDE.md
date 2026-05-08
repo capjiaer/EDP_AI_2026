@@ -52,6 +52,16 @@ cd web/frontend && npm run build                                 # 构建前端
 - 顶部三级联动 foundry/node/project 选择
 - 右侧 Step 详情面板 + 底部状态栏
 
+### Phase 1.5 SidePanel 增强 (2026-04-28)
+- Dependencies 依赖上下游显示（可点击跳转）
+- Config Files 可展开预览（config.tcl / step.tcl）
+- 运行耗时显示（Duration）
+- Quick Action "Run" 按钮
+- WebSocket 推送 execution_time
+- `edp gui` 自动检测 src 变化触发 rebuild
+- WSL 下自动用 cmd.exe 打开 Windows 浏览器
+- 修复 gevent-websocket 支持
+
 ### Phase 2 待做
 - 数据库（当前读文件系统）
 - 配置在线编辑

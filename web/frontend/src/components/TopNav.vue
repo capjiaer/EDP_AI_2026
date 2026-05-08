@@ -2,7 +2,7 @@
   <div class="top-nav">
     <div class="nav-title">EDP Web UI</div>
     <div class="nav-actions">
-      <div class="nav-selects">
+      <div v-if="!setupMode && !preview" class="nav-selects">
         <el-select v-model="localFoundry" placeholder="Foundry" size="small" style="width: 140px">
           <el-option v-for="f in projects" :key="f.foundry" :label="f.foundry" :value="f.foundry" />
         </el-select>
@@ -13,7 +13,9 @@
           <el-option v-for="p in currentProjects" :key="p" :label="p" :value="p" />
         </el-select>
       </div>
-      <el-button type="primary" size="small" @click="$emit('open-init')">Init</el-button>
+      <el-button v-if="!setupMode && preview" size="small" @click="$emit('change-project')">
+        ← Back
+      </el-button>
     </div>
   </div>
 </template>
@@ -26,10 +28,13 @@ const props = defineProps({
   node: String,
   project: String,
   projects: { type: Array, default: () => [] },
+  setupMode: { type: Boolean, default: false },
+  preview: { type: Boolean, default: false },
 })
 
 const emit = defineEmits([
-  'update:foundry', 'update:node', 'update:project', 'open-init',
+  'update:foundry', 'update:node', 'update:project',
+  'change-project',
 ])
 
 const localFoundry = computed({

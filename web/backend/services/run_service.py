@@ -88,14 +88,15 @@ def _run_in_thread(job_id, edp_center, step_name, flow_base, flow_overlay,
         )
         report = executor.run_single(tool_name, step_name)
 
+        execution_time = getattr(report, 'total_time', 0)
         if report.success:
-            _emit_status(step_name, 'success', 'Step completed')
+            _emit_status(step_name, 'success', 'Step completed', execution_time)
             _jobs[job_id]['status'] = 'success'
         else:
             error_msg = ''
             if step_name in report.step_results:
                 error_msg = report.step_results[step_name].error[:200]
-            _emit_status(step_name, 'failed', error_msg or 'Step failed')
+            _emit_status(step_name, 'failed', error_msg or 'Step failed', execution_time)
             _jobs[job_id]['status'] = 'failed'
 
     except Exception as e:
@@ -103,14 +104,17 @@ def _run_in_thread(job_id, edp_center, step_name, flow_base, flow_overlay,
         _jobs[job_id]['status'] = 'failed'
 
 
-def _emit_status(step, status, message=''):
+def _emit_status(step, status, message='', execution_time=0):
     """Push step status to all connected clients."""
     if _socketio:
-        _socketio.emit('step_status', {
+        payload = {
             'step': step,
             'status': status,
             'message': message,
-        })
+        }
+        if execution_time:
+            payload['execution_time'] = round(execution_time, 2)
+        _socketio.emit('step_status', payload)
 
 
 def get_job_status(job_id):

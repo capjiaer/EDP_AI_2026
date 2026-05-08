@@ -96,7 +96,8 @@ class WorkPathInitializer:
     def _create_or_update_version(self, project_path: Path,
                                   project_name: str, project_node: str,
                                   foundry: str, node: str, blocks: List[str],
-                                  graph_config: Optional[str] = None) -> None:
+                                  graph_config: Optional[str] = None,
+                                  block_users: Optional[Dict[str, List[str]]] = None) -> None:
         """创建或更新 .edp_version 文件"""
         import getpass
         now = datetime.now().isoformat()
@@ -125,6 +126,9 @@ class WorkPathInitializer:
 
         if graph_config:
             info['graph_config'] = graph_config
+
+        if block_users:
+            info['block_users'] = block_users
 
         for block_name in blocks:
             if block_name not in info['blocks']:
@@ -363,6 +367,7 @@ class WorkPathInitializer:
                      project_name: str,
                      project_node: str,
                      blocks: Optional[List[str]] = None,
+                     block_users: Optional[Dict[str, List[str]]] = None,
                      foundry: Optional[str] = None,
                      node: Optional[str] = None,
                      graph_config: Optional[str] = None) -> Dict[str, Path]:
@@ -374,6 +379,7 @@ class WorkPathInitializer:
             project_name: 项目名称
             project_node: 项目节点名称（如 P85）
             blocks: 块名称列表
+            block_users: block→user 映射，如 {"pcie": ["lisi", "wangwu"]}
             foundry: 可选
             node: 可选
 
@@ -397,7 +403,7 @@ class WorkPathInitializer:
         # 版本信息
         self._create_or_update_version(
             project_path, project_name, project_node, foundry, node, blocks,
-            graph_config=graph_config
+            graph_config=graph_config, block_users=block_users,
         )
 
         # 创建 blocks
@@ -407,6 +413,14 @@ class WorkPathInitializer:
             block_path.mkdir(parents=True, exist_ok=True)
             _ensure_shared_dir(block_path)
             block_paths[block_name] = block_path
+
+        # 创建 block 下的 user 目录
+        if block_users:
+            for block_name, users in block_users.items():
+                block_path = block_paths.get(block_name) or project_path / block_name
+                block_path.mkdir(parents=True, exist_ok=True)
+                for user_name in users:
+                    (block_path / user_name).mkdir(parents=True, exist_ok=True)
 
         return {
             'work_path': work_path,
@@ -462,6 +476,24 @@ class WorkPathInitializer:
                 )
             foundry = detected['foundry']
             node = detected['node']
+
+        # 检查 block_users 授权
+        project_path = work_path / project_name / project_node
+        version_file = project_path / '.edp_version'
+        if version_file.exists():
+            try:
+                with open(version_file, 'r', encoding='utf-8') as f:
+                    _vinfo = yaml.safe_load(f) or {}
+            except Exception:
+                _vinfo = {}
+            _block_users = _vinfo.get('block_users', {})
+            if block_name in _block_users:
+                _allowed = _block_users[block_name]
+                if user_name not in _allowed:
+                    raise ValueError(
+                        f"User '{user_name}' is not authorized for block '{block_name}'.\n"
+                        f"  Allowed users: {_allowed}"
+                    )
 
         # 构建分支路径
         branch_path = (

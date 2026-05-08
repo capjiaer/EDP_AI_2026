@@ -21,3 +21,6 @@ web/frontend/node_modules/
 # OS
 .DS_Store
 Thumbs.db
+
+# Test projects
+try_new_edp/

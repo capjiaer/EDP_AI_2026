@@ -1,6 +1,9 @@
 {
-    "terminal.integrated.defaultProfile.linux": "tcsh",
+    "terminal.integrated.defaultProfile.linux": "bash",
     "terminal.integrated.profiles.linux": {
+        "bash": {
+            "path": "/bin/bash"
+        },
         "tcsh": {
             "path": "/usr/bin/tcsh"
         }

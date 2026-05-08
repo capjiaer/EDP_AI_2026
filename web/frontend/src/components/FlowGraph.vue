@@ -107,7 +107,7 @@ const nodes = computed(() => {
     data: {
       label: n.label,
       tool: n.tool,
-      status: props.stepStatuses[n.id] || 'idle',
+      status: (props.stepStatuses[n.id] || {}).status || 'idle',
     },
   }))
 })

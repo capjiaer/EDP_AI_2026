@@ -15,7 +15,7 @@ if str(_packages) not in sys.path:
 socketio = SocketIO(cors_allowed_origins='*')
 
 
-def create_app(edp_center=None):
+def create_app(edp_center=None, workdir='', foundry='', node='', project=''):
     app = Flask(__name__, static_folder=None)
 
     if edp_center:
@@ -26,6 +26,14 @@ def create_app(edp_center=None):
         app.config['EDP_CENTER'] = Path(os.environ['EDP_ROOT']) / 'resources'
     else:
         app.config['EDP_CENTER'] = _project_root / 'resources'
+
+    app.config['EDP_WORKDIR'] = workdir
+    if foundry:
+        app.config['EDP_FOUNDRY'] = foundry
+    if node:
+        app.config['EDP_NODE'] = node
+    if project:
+        app.config['EDP_PROJECT'] = project
 
     CORS(app)
     socketio.init_app(app)

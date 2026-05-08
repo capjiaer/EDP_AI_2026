@@ -23,7 +23,7 @@ _edp_completions() {
     for ((i=1; i<COMP_CWORD; i++)); do
         case "${COMP_WORDS[i]}" in
             -*) continue ;;
-            init|run|status|retry|graph|doctor|flowcreate|tutor)
+            init|run|status|retry|graph|doctor|flowcreate|tutor|gui)
                 subcmd="${COMP_WORDS[i]}"
                 break
                 ;;
@@ -32,7 +32,7 @@ _edp_completions() {
 
     # No subcommand yet
     if [[ -z "$subcmd" ]]; then
-        COMPREPLY=($(compgen -W "init run status retry graph doctor flowcreate tutor -h --help" -- "$cur"))
+        COMPREPLY=($(compgen -W "init run status retry graph doctor flowcreate tutor gui -h --help" -- "$cur"))
         return
     fi
 

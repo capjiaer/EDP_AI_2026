@@ -18,7 +18,7 @@ endif
 uncomplete edp >& /dev/null
 
 complete edp \
-  'p/1/(init run status retry graph doctor flowcreate tutor)/' \
+  'p/1/(init run status retry graph doctor flowcreate tutor gui)/' \
   \
   'n/init/(-prj --project -w --work-path -n --node -ver --version -blk --block -br --branch --link --no-link -h --help)/' \
   'n/-prj/$_edp_projects/' \

@@ -9,6 +9,36 @@
           <span :class="'status-badge status-' + (status || 'idle')">{{ status || 'idle' }}</span>
         </div>
 
+        <!-- Quick Actions -->
+        <div v-if="!preview" class="section">
+          <div class="btn-group">
+            <button class="action-btn run-btn" @click="$emit('run-step', step)" :disabled="status === 'running'">
+              &#9654; {{ status === 'running' ? 'Running...' : 'Run' }}
+            </button>
+          </div>
+        </div>
+
+        <!-- Dependencies -->
+        <div v-if="deps && (deps.upstream.length || deps.downstream.length)" class="section">
+          <div class="section-title">Dependencies</div>
+          <div class="dep-section">
+            <div v-if="deps.upstream.length" class="dep-group">
+              <span class="dep-label">Depends on</span>
+              <div class="dep-chips">
+                <span v-for="u in deps.upstream" :key="u.id" class="dep-chip dep-up"
+                  @click="$emit('select-step', u.id)">{{ u.label }}</span>
+              </div>
+            </div>
+            <div v-if="deps.downstream.length" class="dep-group">
+              <span class="dep-label">Depended by</span>
+              <div class="dep-chips">
+                <span v-for="d in deps.downstream" :key="d.id" class="dep-chip dep-down"
+                  @click="$emit('select-step', d.id)">{{ d.label }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <!-- Basic Info -->
         <div class="section">
           <div class="section-title">Basic Info</div>
@@ -20,6 +50,10 @@
             <div class="info-item">
               <span class="info-label">Step</span>
               <span class="info-value">{{ step }}</span>
+            </div>
+            <div v-if="executionTime" class="info-item">
+              <span class="info-label">Duration</span>
+              <span class="info-value time-value">{{ executionTime }}</span>
             </div>
           </div>
         </div>
@@ -63,6 +97,20 @@
           </div>
         </div>
 
+        <!-- Config Files -->
+        <div v-if="stepDetail && configFiles.length" class="section">
+          <div class="section-title">Config Files</div>
+          <div class="substep-list">
+            <CodeViewer
+              v-for="cf in configFiles"
+              :key="cf.label"
+              :name="cf.label"
+              :tag="cf.tag"
+              :file-path="cf.path"
+            />
+          </div>
+        </div>
+
         <!-- File Paths -->
         <div v-if="allFilePaths.length" class="section">
           <div class="section-title">File Paths</div>
@@ -78,11 +126,9 @@
         </div>
 
         <!-- Error -->
-        <div v-if="status === 'failed'" class="section">
+        <div v-if="status === 'failed' && stepError" class="section">
           <div class="section-title error-title">Error</div>
-          <div class="error-block">
-            Execution failed. Check logs for details.
-          </div>
+          <div class="error-block">{{ stepError }}</div>
         </div>
       </template>
       <template v-else>
@@ -102,28 +148,49 @@ import CodeViewer from './CodeViewer.vue'
 
 const props = defineProps({
   step: String,
-  status: String,
+  stepStatus: Object,
   toolName: String,
   stepDetail: Object,
+  deps: {
+    type: Object,
+    default: () => ({ upstream: [], downstream: [] }),
+  },
+  preview: { type: Boolean, default: false },
 })
+
+const emit = defineEmits(['run-step', 'select-step'])
 
 const panelWidth = ref(380)
 const copiedPath = ref('')
 let resizing = false
 
+const status = computed(() => props.stepStatus?.status || 'idle')
+const executionTime = computed(() => props.stepStatus?.formatted_time || '')
+const stepError = computed(() => {
+  // Check stepStatus error first (from WebSocket), then stepDetail (from API)
+  return props.stepStatus?.error || ''
+})
+
+const configFiles = computed(() => {
+  const files = props.stepDetail?.files || {}
+  const result = []
+  const configLabels = {
+    config_tcl: { label: 'config.tcl', tag: '.tcl' },
+    step_tcl: { label: 'step.tcl', tag: '.tcl' },
+  }
+  for (const [key, info] of Object.entries(configLabels)) {
+    if (files[key]) result.push({ label: info.label, tag: info.tag, path: files[key] })
+  }
+  return result
+})
+
 const allFilePaths = computed(() => {
   const files = props.stepDetail?.files || {}
   const result = []
-  // Generated cmd files (workspace)
-  const cmdLabels = {
-    config_tcl: 'config.tcl',
-    step_tcl: 'step.tcl',
-    debug_tcl: 'debug.tcl',
-    launcher: 'launcher (.sh)',
-  }
-  for (const [key, label] of Object.entries(cmdLabels)) {
-    if (files[key]) result.push({ label, path: files[key] })
-  }
+  // Launcher is shown as file path (not code preview)
+  if (files.launcher) result.push({ label: 'launcher (.sh)', path: files.launcher })
+  // debug_tcl as file path
+  if (files.debug_tcl) result.push({ label: 'debug.tcl', path: files.debug_tcl })
   // Sub-step source files (resources)
   if (files.sub_step_files) {
     for (const [sub, path] of Object.entries(files.sub_step_files)) {
@@ -212,6 +279,93 @@ function startResize(e) {
   font-size: 16px;
 }
 
+/* Quick Actions */
+.btn-group {
+  display: flex;
+  gap: 8px;
+}
+
+.action-btn {
+  flex: 1;
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid #dcdfe6;
+  background: #fff;
+  color: #303133;
+  transition: all 0.15s;
+}
+
+.action-btn:hover:not(:disabled) {
+  border-color: #409EFF;
+  color: #409EFF;
+}
+
+.action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.run-btn {
+  color: #409EFF;
+  border-color: #409EFF;
+}
+
+.run-btn:hover:not(:disabled) {
+  background: #ecf5ff;
+}
+
+/* Dependencies */
+.dep-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.dep-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.dep-label {
+  font-size: 11px;
+  color: #909399;
+  font-weight: 500;
+}
+
+.dep-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.dep-chip {
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.dep-chip:hover {
+  transform: scale(1.05);
+}
+
+.dep-up {
+  background: #ecf5ff;
+  color: #409EFF;
+}
+
+.dep-down {
+  background: #f0f9eb;
+  color: #67C23A;
+}
+
+/* Section styling */
 .section {
   padding: 14px 20px;
   border-bottom: 1px solid #f5f5f5;
@@ -247,6 +401,10 @@ function startResize(e) {
   font-size: 13px;
   color: #303133;
   font-weight: 500;
+}
+
+.time-value {
+  color: #E6A23C;
 }
 
 .substep-list {
@@ -348,6 +506,8 @@ function startResize(e) {
   padding: 10px 12px;
   border-radius: 4px;
   border-left: 3px solid #F56C6C;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 .empty-state {

@@ -84,6 +84,7 @@ def init_project():
     foundry = data.get('foundry', '')
     node = data.get('node', '')
     graph_config = data.get('graph_config', '')
+    block_users = data.get('block_users', {})
 
     errors = []
     if not work_path:
@@ -113,6 +114,7 @@ def init_project():
             foundry=foundry,
             node=node,
             graph_config=graph_config or None,
+            block_users=block_users or None,
         )
         return jsonify({
             'status': 'ok',

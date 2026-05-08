@@ -1,9 +1,0 @@
-# Step-level post hook for sta_pt.recheck
-Runs after ALL sub_steps of recheck.
-# Fill in your code inside the proc body, or delete this file if not needed.
-
-proc recheck_step_post {} {
-    global edp pnr_innovus pv_calibre sta_pt
-
-    # Your code here
-}

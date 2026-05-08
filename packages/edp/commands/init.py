@@ -28,10 +28,12 @@ from edp.context import _find_graph_configs
               help='User name (default: current OS user)')
 @click.option('-br', '--branch', default=None,
               help='Branch name (default: {YYYY}_{M}_{D}_main)')
+@click.option('-b', '--block-user', multiple=True,
+              help='Block user mapping: block:user1,user2 (PM mode, repeatable)')
 @click.option('--link/--no-link', default=True,
               help='Use symbolic links (default: yes)')
 @click.pass_context
-def init(ctx, project, project_version, block, user_name, branch, link):
+def init(ctx, project, project_version, block, user_name, branch, block_user, link):
     """Initialize project skeleton or block workspace.
 
     \b
@@ -173,16 +175,38 @@ def init(ctx, project, project_version, block, user_name, branch, link):
     click.echo(f"  Graph:   {selected_graph}" if selected_graph else
                "  Graph:   (no graph_config found)")
 
+    # 解析 block-user 映射
+    block_users = {}
+    for bu in block_user:
+        if ':' not in bu:
+            raise click.ClickException(
+                f"Invalid block-user format: '{bu}'.\n"
+                f"  Expected: block:user1,user2 (e.g. pcie:lisi,wangwu)"
+            )
+        blk, users_str = bu.split(':', 1)
+        users = [u.strip() for u in users_str.split(',') if u.strip()]
+        if not users:
+            raise click.ClickException(
+                f"No users specified for block '{blk}'."
+            )
+        block_users[blk] = users
+
+    if block_users:
+        click.echo("  Block users:")
+        for blk, users in block_users.items():
+            click.echo(f"    {blk}: {', '.join(users)}")
+
     work_path = str(Path.cwd())
 
     wp_init.init_project(
         work_path=work_path,
         project_name=project,
         project_node=project_version,
-        blocks=[],
+        blocks=list(block_users.keys()),
         foundry=foundry,
         node=node,
         graph_config=selected_graph,
+        block_users=block_users or None,
     )
 
     proj_path = Path(work_path) / project / project_version
