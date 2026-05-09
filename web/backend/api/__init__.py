@@ -12,6 +12,8 @@ def init_app(app):
     from .step_detail import step_detail_bp
     from .init import init_bp
     from .context import context_bp
+    from .blocks import blocks_bp
+    from .workspace import workspace_bp
 
-    for sub_bp in [graph_bp, status_bp, run_bp, projects_bp, step_detail_bp, init_bp, context_bp]:
+    for sub_bp in [graph_bp, status_bp, run_bp, projects_bp, step_detail_bp, init_bp, context_bp, blocks_bp, workspace_bp]:
         app.register_blueprint(sub_bp, url_prefix='/api')

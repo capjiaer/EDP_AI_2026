@@ -124,6 +124,7 @@ def gui(ctx, port, host, debug, no_build):
 
     # Detect workspace context from CWD
     workdir = os.getcwd()
+    work_path = os.environ.get('WORK_PATH', '')
     foundry_auto = node_auto = project_auto = ''
     try:
         from dirkit.project_finder import ProjectFinder
@@ -133,6 +134,9 @@ def gui(ctx, port, host, debug, no_build):
             foundry_auto = ctx.get('foundry', '')
             node_auto = ctx.get('node', '')
             project_auto = ctx.get('project_name', '')
+            # Infer WORK_PATH from context: {work_path}/{project}/{version}
+            if not work_path and 'work_path' in ctx:
+                work_path = ctx['work_path']
     except Exception:
         pass
 
@@ -145,6 +149,8 @@ def gui(ctx, port, host, debug, no_build):
         node=node_auto,
         project=project_auto,
     )
+    if work_path:
+        app.config['WORK_PATH'] = work_path
 
     if foundry_auto:
         click.echo(f"Detected workspace: {foundry_auto}/{node_auto}/{project_auto}")

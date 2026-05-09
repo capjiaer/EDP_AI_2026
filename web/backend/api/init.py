@@ -19,12 +19,19 @@ init_bp = Blueprint('init', __name__)
 
 
 def _get_work_path():
-    """Get WORK_PATH from config or env."""
+    """Get WORK_PATH from config or env, with fallbacks."""
     wp = current_app.config.get('WORK_PATH')
     if wp:
         return str(wp)
+    wp = current_app.config.get('EDP_WORKDIR')
+    if wp:
+        return str(wp)
     import os
-    return os.environ.get('WORK_PATH', '')
+    wp = os.environ.get('WORK_PATH')
+    if wp:
+        return str(wp)
+    # Fallback: current directory
+    return os.getcwd()
 
 
 @init_bp.route('/init/work-path', methods=['GET'])
@@ -128,6 +135,32 @@ def init_project():
         return jsonify({'error': str(e)}), 400
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+
+@init_bp.route('/init/graph-config-content', methods=['GET'])
+def graph_config_content():
+    foundry = request.args.get('foundry', '')
+    node = request.args.get('node', '')
+    project = request.args.get('project', '')
+    graph_config = request.args.get('graph_config', '')
+    if not all([foundry, node, project, graph_config]):
+        return jsonify({'error': 'foundry, node, project, graph_config are required'}), 400
+
+    edp_center = current_app.config.get('EDP_CENTER')
+    if not edp_center:
+        return jsonify({'error': 'EDP_CENTER not configured'}), 500
+
+    init_path = Path(edp_center) / 'flow' / 'initialize'
+    flow_base = init_path / foundry / node / 'common_prj'
+    flow_overlay = init_path / foundry / node / project
+
+    configs = _find_graph_configs(flow_base, flow_overlay)
+    for c in configs:
+        if c.name == graph_config:
+            content = c.read_text(encoding='utf-8')
+            return jsonify({'name': c.name, 'content': content, 'path': str(c)})
+
+    return jsonify({'error': 'graph config not found'}), 404
 
 
 @init_bp.route('/init/block', methods=['POST'])
